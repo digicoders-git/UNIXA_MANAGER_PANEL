@@ -36,46 +36,44 @@ export default function Login() {
     setLoading(true);
 
     try {
+      console.log('🔄 Login attempt:', { email, apiUrl: import.meta.env.VITE_API_BASE_URL });
+      
       const response = await http.post('/employees/login', {
         email,
         password
       });
 
+      console.log('✅ Response:', response.data);
+
       if (response.data.token) {
-        // Optional: Check if role is Manager
-        /*
-        if (response.data.user.role !== 'Manager' && response.data.user.role !== 'System Admin') {
-           toast({
-             title: 'Access Denied',
-             description: 'You do not have manager privileges.',
-             status: 'error',
-             duration: 5000,
-             isClosable: true,
-           });
-           setLoading(false);
-           return;
-        }
-        */
-        
         login(response.data.user, response.data.token);
         toast({
           title: 'Login Successful',
-          description: "Welcome to Manager Panel",
+          description: `Welcome ${response.data.user.name}`,
           status: 'success',
           duration: 3000,
           isClosable: true,
         });
         navigate('/dashboard');
+      } else {
+        throw new Error('No token received');
       }
     } catch (error) {
-      console.error("Login Error:", error);
+      console.error('❌ Error:', error);
+      console.error('Response:', error.response?.data);
+      console.error('Status:', error.response?.status);
+      
+      const errorMsg = error.response?.data?.message || error.message || 'Invalid email or password';
+      
       toast({
         title: 'Login Failed',
-        description: error.response?.data?.message || 'Invalid email or password',
+        description: errorMsg,
         status: 'error',
         duration: 5000,
         isClosable: true,
       });
+      
+      alert(`❌ Login Failed\n\nError: ${errorMsg}\n\nCheck console (F12) for details`);
     } finally {
       setLoading(false);
     }
@@ -118,6 +116,7 @@ export default function Login() {
                   bg={useColorModeValue('gray.50', 'gray.700')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
                 />
               </FormControl>
 
@@ -132,6 +131,7 @@ export default function Login() {
                     bg={useColorModeValue('gray.50', 'gray.700')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
                   />
                   <InputRightElement width="3rem">
                     <IconButton

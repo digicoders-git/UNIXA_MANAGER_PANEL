@@ -13,6 +13,7 @@ import ManageEmployee from './pages/ManageEmployee';
 import ManageOrder from './pages/ManageOrder';
 import GenerateReport from './pages/GenerateReport';
 import MyAssets from './pages/MyAssets';
+import AssetsHistory from './pages/AssetsHistory';
 import Profile from './pages/Profile';
 import ChangePassword from './pages/ChangePassword';
 import Notifications from './pages/Notifications';
@@ -125,6 +126,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <MyAssets />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/assets-history" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AssetsHistory />
                 </DashboardLayout>
               </ProtectedRoute>
             } 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Box, VStack, Heading, Text, SimpleGrid, Badge, Button, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton, useDisclosure, Select, Textarea, useToast, Spinner, Center, HStack, Icon, Flex, Table, Thead, Tbody, Tr, Th, Td } from "@chakra-ui/react";
-import { FaLaptop, FaCar, FaTools, FaPencilAlt, FaSimCard, FaTshirt, FaBox, FaHistory } from "react-icons/fa";
+import { Box, VStack, Heading, Text, SimpleGrid, Badge, Button, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton, useDisclosure, Select, Textarea, useToast, Spinner, Center, HStack, Icon, Flex, Table, Thead, Tbody, Tr, Th, Td, IconButton } from "@chakra-ui/react";
+import { FaLaptop, FaCar, FaTools, FaPencilAlt, FaSimCard, FaTshirt, FaBox, FaHistory, FaTable, FaThLarge } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import http from "../apis/http";
 
 const assetIcons = {
@@ -17,12 +18,13 @@ const MyAssets = () => {
   const [assets, setAssets] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState("table");
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [newEmployeeId, setNewEmployeeId] = useState("");
   const [remarks, setRemarks] = useState("");
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { isOpen: isHistoryOpen, onOpen: onHistoryOpen, onClose: onHistoryClose } = useDisclosure();
   const toast = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchMyAssets();
@@ -89,12 +91,57 @@ const MyAssets = () => {
           <Heading size="lg" fontWeight="900" color="gray.800">My Assets</Heading>
           <Text color="gray.500" fontSize="sm">Assets assigned to you</Text>
         </VStack>
-        <Badge colorScheme="blue" fontSize="md" px={4} py={2} borderRadius="lg">{assets.length} Assets</Badge>
+        <HStack spacing={2}>
+          <Button size="sm" colorScheme="purple" leftIcon={<FaHistory />} onClick={() => navigate('/assets-history')}>View History</Button>
+          <Badge colorScheme="blue" fontSize="md" px={4} py={2} borderRadius="lg">{assets.length} Assets</Badge>
+          <HStack spacing={0} border="1px solid" borderColor="gray.200" borderRadius="md" overflow="hidden">
+            <IconButton icon={<FaTable />} size="sm" onClick={() => setViewMode("table")} colorScheme={viewMode === "table" ? "blue" : "gray"} variant={viewMode === "table" ? "solid" : "ghost"} borderRadius="0" aria-label="Table View" />
+            <IconButton icon={<FaThLarge />} size="sm" onClick={() => setViewMode("card")} colorScheme={viewMode === "card" ? "blue" : "gray"} variant={viewMode === "card" ? "solid" : "ghost"} borderRadius="0" aria-label="Card View" />
+          </HStack>
+        </HStack>
       </Flex>
 
       {assets.length === 0 ? (
         <Box bg="white" p={10} borderRadius="2xl" textAlign="center" shadow="sm">
           <Text color="gray.500">No assets assigned to you</Text>
+        </Box>
+      ) : viewMode === "table" ? (
+        <Box bg="white" borderRadius="2xl" border="1px solid" borderColor="gray.100" overflow="hidden" shadow="sm">
+          <Table variant="simple">
+            <Thead bg="gray.50">
+              <Tr>
+                <Th>Asset Details</Th>
+                <Th>Type</Th>
+                <Th>Condition</Th>
+                <Th>Model</Th>
+                <Th textAlign="right">Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {assets.map((asset) => (
+                <Tr key={asset._id} _hover={{ bg: "gray.50" }}>
+                  <Td>
+                    <HStack spacing={3}>
+                      <Icon as={assetIcons[asset.assetType] || FaBox} fontSize="xl" color="blue.500" />
+                      <Box>
+                        <Text fontWeight="bold" color="gray.800">{asset.assetName}</Text>
+                        <Text fontSize="xs" color="gray.500">ID: {asset.uniqueId}</Text>
+                      </Box>
+                    </HStack>
+                  </Td>
+                  <Td><Text fontSize="sm">{asset.assetType}</Text></Td>
+                  <Td><Badge colorScheme={asset.condition === "New" ? "green" : asset.condition === "Good" ? "blue" : "orange"}>{asset.condition}</Badge></Td>
+                  <Td><Text fontSize="sm" color="gray.600">{asset.modelNumber || "-"}</Text></Td>
+                  <Td textAlign="right">
+                    <HStack spacing={2} justify="flex-end">
+                      <Button size="sm" colorScheme="blue" onClick={() => handleReassign(asset)}>Re-assign</Button>
+                      <Button size="sm" colorScheme="red" variant="outline" onClick={() => { setSelectedAsset(asset); setNewEmployeeId(""); setRemarks(""); onOpen(); }}>Return</Button>
+                    </HStack>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
         </Box>
       ) : (
         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
@@ -110,8 +157,7 @@ const MyAssets = () => {
               {asset.modelNumber && <Text fontSize="sm" color="gray.500" mb={3}>Model: {asset.modelNumber}</Text>}
               <HStack spacing={2} mt={4}>
                 <Button size="sm" colorScheme="blue" onClick={() => handleReassign(asset)} flex={1}>Re-assign</Button>
-                <Button size="sm" colorScheme="purple" variant="outline" onClick={() => { setSelectedAsset(asset); onHistoryOpen(); }} leftIcon={<FaHistory />}>History</Button>
-                <Button size="sm" colorScheme="red" variant="outline" onClick={() => { setSelectedAsset(asset); setNewEmployeeId(""); setRemarks(""); onOpen(); }}>Return to Admin</Button>
+                <Button size="sm" colorScheme="red" variant="outline" onClick={() => { setSelectedAsset(asset); setNewEmployeeId(""); setRemarks(""); onOpen(); }}>Return</Button>
               </HStack>
             </Box>
           ))}
@@ -146,58 +192,6 @@ const MyAssets = () => {
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={onClose}>Cancel</Button>
             <Button colorScheme="blue" onClick={submitReassign}>{newEmployeeId ? "Re-assign" : "Return to Admin"}</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      <Modal isOpen={isHistoryOpen} onClose={onHistoryClose} size="4xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Asset History - {selectedAsset?.assetName}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <Box>
-                <Text fontWeight="bold" mb={2}>Asset Details</Text>
-                <HStack spacing={4}>
-                  <Text fontSize="sm">ID: {selectedAsset?.uniqueId}</Text>
-                  <Text fontSize="sm">Type: {selectedAsset?.assetType}</Text>
-                  <Badge colorScheme="blue">{selectedAsset?.condition}</Badge>
-                </HStack>
-              </Box>
-              <Box>
-                <Text fontWeight="bold" mb={2}>Assignment History</Text>
-                {selectedAsset?.assignmentHistory?.length > 0 ? (
-                  <Table variant="simple" size="sm">
-                    <Thead>
-                      <Tr>
-                        <Th>Employee</Th>
-                        <Th>Assigned Date</Th>
-                        <Th>Return Date</Th>
-                        <Th>Condition</Th>
-                        <Th>Remarks</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {selectedAsset.assignmentHistory.map((history, idx) => (
-                        <Tr key={idx}>
-                          <Td>{history.employeeName}</Td>
-                          <Td>{new Date(history.assignedDate).toLocaleDateString()}</Td>
-                          <Td>{new Date(history.returnDate).toLocaleDateString()}</Td>
-                          <Td><Badge colorScheme={history.conditionOnreturn === "Good" ? "green" : "orange"}>{history.conditionOnreturn}</Badge></Td>
-                          <Td>{history.remarks || "-"}</Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                ) : (
-                  <Text color="gray.500" fontSize="sm">No history available</Text>
-                )}
-              </Box>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button onClick={onHistoryClose}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

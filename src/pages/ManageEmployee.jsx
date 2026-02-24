@@ -91,17 +91,19 @@ export default function ManageEmployee() {
     try {
       setLoading(true);
       const response = await http.get('/employees');
-      // Transform data to match component structure
-      const formattedEmployees = response.data.map(emp => ({
-        id: emp._id,
-        name: emp.name,
-        email: emp.email,
-        role: emp.role,
-        department: emp.designation || 'N/A', // Mapping designation to department/role context
-        joined: new Date(emp.createdAt).toISOString().split('T')[0],
-        avatar: '', // You can add avatar logic if backend provides it
-        status: emp.status ? 'Active' : 'Inactive'
-      }));
+      // Filter out managers, only show employees
+      const formattedEmployees = response.data
+        .filter(emp => emp.role !== 'Manager')
+        .map(emp => ({
+          id: emp._id,
+          name: emp.name,
+          email: emp.email,
+          role: emp.role,
+          department: emp.designation || 'N/A',
+          joined: new Date(emp.createdAt).toISOString().split('T')[0],
+          avatar: '',
+          status: emp.status ? 'Active' : 'Inactive'
+        }));
       setEmployees(formattedEmployees);
     } catch (error) {
       console.error("Error fetching employees:", error);

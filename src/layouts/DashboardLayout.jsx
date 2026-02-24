@@ -35,7 +35,8 @@ import {
   FiUser,
   FiLogOut,
   FiShoppingCart,
-  FiBox
+  FiBox,
+  FiTool
 } from 'react-icons/fi';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -43,6 +44,7 @@ import { useAuth } from '../context/AuthContext';
 const LinkItems = [
   { name: 'Dashboard', icon: FiHome, path: '/dashboard' },
   { name: 'Assign Ticket', icon: FiClipboard, path: '/assign-ticket' },
+  { name: 'Service Requests', icon: FiTool, path: '/service-requests' },
   { name: 'Manage Lead', icon: FiTrendingUp, path: '/manage-lead' },
   { name: 'Manage Orders', icon: FiShoppingCart, path: '/manage-orders' },
   { name: 'Monitor Employee', icon: FiActivity, path: '/monitor-employee' },

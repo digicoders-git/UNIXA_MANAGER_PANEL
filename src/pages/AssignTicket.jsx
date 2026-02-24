@@ -39,20 +39,20 @@ import {
   useColorModeValue,
   Avatar,
 } from '@chakra-ui/react';
-import { 
-  FiSend, 
-  FiUser, 
-  FiFileText, 
-  FiActivity, 
-  FiTrash2, 
-  FiEdit2, 
-  FiPlus, 
-  FiSearch, 
-  FiFilter, 
-  FiInbox, 
-  FiCalendar, 
-  FiEye, 
-  FiChevronLeft, 
+import {
+  FiSend,
+  FiUser,
+  FiFileText,
+  FiActivity,
+  FiTrash2,
+  FiEdit2,
+  FiPlus,
+  FiSearch,
+  FiFilter,
+  FiInbox,
+  FiCalendar,
+  FiEye,
+  FiChevronLeft,
   FiChevronRight,
   FiClock
 } from 'react-icons/fi';
@@ -63,6 +63,7 @@ const initialTickets = [];
 
 export default function AssignTicket() {
   const [tickets, setTickets] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,12 +78,18 @@ export default function AssignTicket() {
   const [editingTicket, setEditingTicket] = useState(null);
   const [viewingTicket, setViewingTicket] = useState(null);
   const [formData, setFormData] = useState({
+    ticketType: 'service_request',
     title: '',
     employee: '',
     priority: 'Medium',
     date: '',
-    desc: ''
+    desc: '',
+    serviceRequestId: '',
+    orderId: ''
   });
+
+  const [serviceRequests, setServiceRequests] = useState([]);
+  const [orders, setOrders] = useState([]);
 
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.100', 'gray.700');
@@ -91,33 +98,60 @@ export default function AssignTicket() {
   // Handle Create/Edit
   useEffect(() => {
     fetchTickets();
+    fetchEmployees();
+    fetchServiceRequests();
+    fetchOrders();
   }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await http.get('/employees');
+      const filteredEmployees = response.data.filter(emp => emp.role !== 'Manager');
+      setEmployees(filteredEmployees);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  };
+
+  const fetchServiceRequests = async () => {
+    try {
+      const response = await http.get('/admin/service-requests');
+      const openRequests = response.data.filter(req => req.status === 'Open');
+      setServiceRequests(openRequests);
+    } catch (error) {
+      console.error("Error fetching service requests:", error);
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      const response = await http.get('/orders');
+      const confirmedOrders = response.data.filter(order => order.status === 'confirmed');
+      setOrders(confirmedOrders);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    }
+  };
 
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      const response = await http.get('/customers'); // Fetch customers to get complaints
-      
-      const allComplaints = [];
-      response.data.forEach(customer => {
-        if(customer.complaints && customer.complaints.length > 0) {
-           customer.complaints.forEach(complaint => {
-               allComplaints.push({
-                   id: complaint._id,
-                   title: complaint.type || 'Service Request',
-                   employee: complaint.assignedTo ? complaint.assignedTo.name : 'Unassigned',
-                   priority: complaint.priority || 'Medium',
-                   date: new Date(complaint.date).toISOString().split('T')[0],
-                   status: complaint.status || 'Pending',
-                   desc: complaint.remarks || 'No description provided.',
-                   customerName: customer.name
-               });
-           });
-        }
-      });
-      // Sort by date desc
-      allComplaints.sort((a,b) => new Date(b.date) - new Date(a.date));
-      setTickets(allComplaints);
+      const response = await http.get('/assigned-tickets');
+
+      const formattedTickets = response.data.map(ticket => ({
+        id: ticket._id,
+        ticketType: ticket.ticketType || 'service_request',
+        title: ticket.title || 'Service Request',
+        employee: ticket.assignedTo || 'Unassigned',
+        priority: ticket.priority || 'Medium',
+        date: new Date(ticket.dueDate || ticket.createdAt).toISOString().split('T')[0],
+        status: ticket.status || 'Pending',
+        desc: ticket.description || 'No description provided.',
+        customerName: ticket.customerName
+      }));
+
+      formattedTickets.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setTickets(formattedTickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
       toast({ title: 'Error fetching tickets', status: 'error', isClosable: true });
@@ -126,31 +160,71 @@ export default function AssignTicket() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editingTicket) {
-      setTickets(tickets.map(t => t.id === editingTicket.id ? { ...t, ...formData } : t));
-      toast({ title: "Ticket Updated", status: "success", position: "top-right" });
-    } else {
-      const newTicket = {
-        id: Date.now(),
-        ...formData,
+    try {
+      const userData = JSON.parse(localStorage.getItem('manager-data') || '{}');
+      const managerName = userData.name || 'Manager';
+
+      const ticketData = {
+        ticketType: formData.ticketType,
+        title: formData.title,
+        assignedTo: formData.employee,
+        assignedBy: managerName,
+        priority: formData.priority,
+        dueDate: formData.date,
+        description: formData.desc,
         status: 'Pending'
       };
-      setTickets([newTicket, ...tickets]);
-      toast({ title: "Ticket Created", status: "success", position: "top-right" });
+
+      if (formData.ticketType === 'service_request' && formData.serviceRequestId) {
+        const selectedRequest = serviceRequests.find(req => req._id === formData.serviceRequestId);
+        if (selectedRequest) {
+          ticketData.serviceRequestId = selectedRequest._id;
+          ticketData.userId = selectedRequest.userId;
+          ticketData.amcId = selectedRequest.amcId;
+          ticketData.customerName = selectedRequest.customerName;
+          ticketData.customerPhone = selectedRequest.customerPhone;
+          ticketData.customerEmail = selectedRequest.customerEmail;
+        }
+      } else if (formData.ticketType === 'order' && formData.orderId) {
+        const selectedOrder = orders.find(order => order._id === formData.orderId);
+        if (selectedOrder) {
+          ticketData.orderId = selectedOrder._id;
+          ticketData.userId = selectedOrder.userId;
+          ticketData.customerName = selectedOrder.shippingAddress?.name;
+          ticketData.customerPhone = selectedOrder.shippingAddress?.phone;
+          ticketData.customerEmail = selectedOrder.shippingAddress?.email;
+          ticketData.address = `${selectedOrder.shippingAddress?.addressLine1}, ${selectedOrder.shippingAddress?.city}`;
+        }
+      }
+
+      if (editingTicket) {
+        await http.put(`/assigned-tickets/${editingTicket.id}`, ticketData);
+        toast({ title: "Ticket Updated", status: "success", position: "top-right" });
+      } else {
+        await http.post('/assigned-tickets', ticketData);
+        toast({ title: "Ticket Created", status: "success", position: "top-right" });
+      }
+      fetchTickets();
+      handleCloseForm();
+    } catch (error) {
+      console.error('Error saving ticket:', error);
+      toast({ title: "Failed to save ticket. Make sure backend server is running.", status: "error", position: "top-right" });
     }
-    handleCloseForm();
   };
 
   const handleEdit = (ticket) => {
     setEditingTicket(ticket);
     setFormData({
+      ticketType: ticket.ticketType || 'service_request',
       title: ticket.title,
       employee: ticket.employee,
       priority: ticket.priority,
       date: ticket.date,
-      desc: ticket.desc || ''
+      desc: ticket.desc || '',
+      serviceRequestId: '',
+      orderId: ''
     });
     onFormOpen();
   };
@@ -167,13 +241,13 @@ export default function AssignTicket() {
 
   const handleCloseForm = () => {
     setEditingTicket(null);
-    setFormData({ title: '', employee: '', priority: 'Medium', date: '', desc: '' });
+    setFormData({ ticketType: 'service_request', title: '', employee: '', priority: 'Medium', date: '', desc: '', serviceRequestId: '', orderId: '' });
     onFormClose();
   };
 
   // Pagination & Search Logic
   const filteredTickets = useMemo(() => {
-    return tickets.filter(t => 
+    return tickets.filter(t =>
       t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.employee.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -203,17 +277,17 @@ export default function AssignTicket() {
           </Heading>
           <Text color="gray.500">Manage and track service tasks for your team members.</Text>
         </VStack>
-        
+
         <HStack spacing={3} w={{ base: 'full', md: 'auto' }}>
           <InputGroup maxW="300px">
             <InputLeftElement pointerEvents="none">
               <FiSearch color="gray.300" />
             </InputLeftElement>
-            <Input 
-              placeholder="Search tasks..." 
+            <Input
+              placeholder="Search tasks..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              bg={cardBg} 
+              bg={cardBg}
               borderRadius="xl" focusBorderColor="blue.500" borderColor={borderColor}
             />
           </InputGroup>
@@ -229,6 +303,7 @@ export default function AssignTicket() {
           <Thead bg={tableHeaderBg}>
             <Tr>
               <Th py={5}>Task Information</Th>
+              <Th py={5}>Type</Th>
               <Th py={5}>Assigned To</Th>
               <Th py={5}>Priority</Th>
               <Th py={5}>Deadline</Th>
@@ -249,6 +324,18 @@ export default function AssignTicket() {
                       <Text fontSize="xs" color="gray.500" noOfLines={1}>{ticket.desc || 'No description provided'}</Text>
                     </VStack>
                   </HStack>
+                </Td>
+                <Td py={5}>
+                  <Badge 
+                    colorScheme={ticket.ticketType === 'service_request' ? 'purple' : 'cyan'} 
+                    variant="subtle" 
+                    px={2} 
+                    py={0.5} 
+                    rounded="full"
+                    fontSize="10px"
+                  >
+                    {ticket.ticketType === 'service_request' ? 'AMC Service' : 'Installation'}
+                  </Badge>
                 </Td>
                 <Td py={5}>
                   <HStack spacing={3}>
@@ -304,28 +391,28 @@ export default function AssignTicket() {
               Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredTickets.length)} of {filteredTickets.length} results
             </Text>
             <HStack spacing={2}>
-              <IconButton 
-                icon={<FiChevronLeft />} 
-                size="sm" 
-                isDisabled={currentPage === 1} 
-                onClick={() => setCurrentPage(prev => prev - 1)} 
+              <IconButton
+                icon={<FiChevronLeft />}
+                size="sm"
+                isDisabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
               />
               {[...Array(totalPages)].map((_, i) => (
-                <Button 
-                  key={i} 
-                  size="sm" 
-                  colorScheme={currentPage === i + 1 ? "blue" : "gray"} 
+                <Button
+                  key={i}
+                  size="sm"
+                  colorScheme={currentPage === i + 1 ? "blue" : "gray"}
                   variant={currentPage === i + 1 ? "solid" : "ghost"}
                   onClick={() => setCurrentPage(i + 1)}
                 >
                   {i + 1}
                 </Button>
               ))}
-              <IconButton 
-                icon={<FiChevronRight />} 
-                size="sm" 
-                isDisabled={currentPage === totalPages} 
-                onClick={() => setCurrentPage(prev => prev + 1)} 
+              <IconButton
+                icon={<FiChevronRight />}
+                size="sm"
+                isDisabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
               />
             </HStack>
           </Flex>
@@ -348,34 +435,97 @@ export default function AssignTicket() {
             <ModalBody py={6}>
               <Stack spacing={4}>
                 <FormControl isRequired>
+                  <FormLabel fontWeight="600">Ticket Type</FormLabel>
+                  <Select
+                    borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
+                    value={formData.ticketType}
+                    onChange={(e) => setFormData({ ...formData, ticketType: e.target.value, serviceRequestId: '', orderId: '' })}
+                  >
+                    <option value="service_request">Service Request (AMC)</option>
+                    <option value="order">Order Installation</option>
+                  </Select>
+                </FormControl>
+
+                {formData.ticketType === 'service_request' && (
+                  <FormControl isRequired>
+                    <FormLabel fontWeight="600">Select Service Request</FormLabel>
+                    <Select
+                      placeholder="Choose service request"
+                      borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
+                      value={formData.serviceRequestId}
+                      onChange={(e) => {
+                        const selected = serviceRequests.find(req => req._id === e.target.value);
+                        setFormData({ 
+                          ...formData, 
+                          serviceRequestId: e.target.value,
+                          title: selected ? `${selected.type} - ${selected.customerName}` : ''
+                        });
+                      }}
+                    >
+                      {serviceRequests.map(req => (
+                        <option key={req._id} value={req._id}>
+                          {req.ticketId} - {req.customerName} - {req.type}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
+                {formData.ticketType === 'order' && (
+                  <FormControl isRequired>
+                    <FormLabel fontWeight="600">Select Order</FormLabel>
+                    <Select
+                      placeholder="Choose order"
+                      borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
+                      value={formData.orderId}
+                      onChange={(e) => {
+                        const selected = orders.find(order => order._id === e.target.value);
+                        setFormData({ 
+                          ...formData, 
+                          orderId: e.target.value,
+                          title: selected ? `Order Installation - ${selected.shippingAddress?.name}` : ''
+                        });
+                      }}
+                    >
+                      {orders.map(order => (
+                        <option key={order._id} value={order._id}>
+                          Order #{order._id.slice(-6)} - {order.shippingAddress?.name} - ₹{order.total}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
+                <FormControl isRequired>
                   <FormLabel fontWeight="600">Task Title</FormLabel>
-                  <Input 
-                    placeholder="e.g. Server Maintenance" 
+                  <Input
+                    placeholder="e.g. Server Maintenance"
                     borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
                     value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel fontWeight="600">Assign To (Employee)</FormLabel>
-                  <Select 
+                  <Select
                     placeholder="Select team member" borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
                     value={formData.employee}
-                    onChange={(e) => setFormData({...formData, employee: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, employee: e.target.value })}
                   >
-                    <option value="Rahul Sharma">Rahul Sharma</option>
-                    <option value="Sneha Patil">Sneha Patil</option>
-                    <option value="Karan Mehra">Karan Mehra</option>
-                    <option value="Divya Rao">Divya Rao</option>
+                    {employees.map(emp => (
+                      <option key={emp._id} value={emp.name}>
+                        {emp.name} - {emp.designation || emp.role}
+                      </option>
+                    ))}
                   </Select>
                 </FormControl>
                 <HStack>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Priority</FormLabel>
-                    <Select 
+                    <Select
                       borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.priority}
-                      onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                     >
                       <option value="Low">Low</option>
                       <option value="Medium">Medium</option>
@@ -384,20 +534,20 @@ export default function AssignTicket() {
                   </FormControl>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Due Date</FormLabel>
-                    <Input 
+                    <Input
                       type="date" borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.date}
-                      onChange={(e) => setFormData({...formData, date: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     />
                   </FormControl>
                 </HStack>
                 <FormControl>
                   <FormLabel fontWeight="600">Task Instructions</FormLabel>
-                  <Textarea 
-                    placeholder="Provide details about the task..." 
+                  <Textarea
+                    placeholder="Provide details about the task..."
                     borderRadius="xl" rows={3} bg={useColorModeValue('gray.50', 'gray.900')}
                     value={formData.desc}
-                    onChange={(e) => setFormData({...formData, desc: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, desc: e.target.value })}
                   />
                 </FormControl>
               </Stack>

@@ -17,6 +17,7 @@ import AssetsHistory from './pages/AssetsHistory';
 import Profile from './pages/Profile';
 import ChangePassword from './pages/ChangePassword';
 import Notifications from './pages/Notifications';
+import ServiceRequests from './pages/ServiceRequests';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -166,6 +167,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <Notifications />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/service-requests" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ServiceRequests />
                 </DashboardLayout>
               </ProtectedRoute>
             } 

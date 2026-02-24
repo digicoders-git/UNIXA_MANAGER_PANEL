@@ -38,7 +38,7 @@ export default function Login() {
     try {
       console.log('🔄 Login attempt:', { email, apiUrl: import.meta.env.VITE_API_BASE_URL });
       
-      const response = await http.post('/employees/login', {
+      const response = await http.post('/api/employees/login', {
         email,
         password
       });

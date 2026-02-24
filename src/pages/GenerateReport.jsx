@@ -122,64 +122,55 @@ export default function GenerateReport() {
 
         // SALES REPORT
         if (selectedType === 'sales') {
-            const { data } = await http.get('/orders');
+            const { data } = await http.get('/api/orders');
             rawData = data.orders || [];
-            // Filter
             const filtered = filterDataByTime(rawData, 'createdAt');
             
-            // Format for CSV
             formattedData = filtered.map(order => ({
-                OrderID: order._id,
+                OrderID: order._id.slice(-8),
                 Customer: order.shippingAddress?.name || 'Guest',
-                Amount: order.total,
+                Phone: order.shippingAddress?.phone || 'N/A',
+                Amount: `₹${order.total}`,
                 Status: order.status,
                 Payment: order.paymentMethod,
-                Date: new Date(order.createdAt).toLocaleDateString(),
-                Items: order.items.length
+                PaymentStatus: order.paymentStatus,
+                Date: new Date(order.createdAt).toLocaleDateString('en-IN'),
+                Items: order.items.length,
+                Source: order.source || 'online'
             }));
         } 
         // TICKET ANALYTICS
         else if (selectedType === 'ticket') {
-             const { data } = await http.get('/customers');
-             // Flatten complaints
-             const complaints = [];
-             data.forEach(cust => {
-                 if(cust.complaints) {
-                     cust.complaints.forEach(c => {
-                         complaints.push({
-                             customer: cust.name,
-                             ...c,
-                             date: c.date // Assuming date field exists
-                         });
-                     });
-                 }
-             });
-             const filtered = filterDataByTime(complaints, 'date');
+             const { data } = await http.get('/api/assigned-tickets');
+             const filtered = filterDataByTime(data, 'createdAt');
              
-             formattedData = filtered.map(t => ({
-                 TicketID: t._id,
-                 Customer: t.customer,
-                 Type: t.type,
+             formattedData = filtered.map((t, idx) => ({
+                 TicketNumber: `TKT-${String(idx + 1).padStart(4, '0')}`,
+                 Title: t.title,
+                 Customer: t.customerName || 'N/A',
+                 Phone: t.customerPhone || 'N/A',
+                 AssignedTo: t.assignedTo,
+                 AssignedBy: t.assignedBy,
                  Priority: t.priority,
                  Status: t.status,
-                 Date: new Date(t.date).toLocaleDateString(),
-                 AssignedTo: t.assignedTo?.name || 'Unassigned'
+                 DueDate: new Date(t.dueDate).toLocaleDateString('en-IN'),
+                 CreatedDate: new Date(t.createdAt).toLocaleDateString('en-IN')
              }));
         }
         // ACTIVITY REPORT (Employees)
         else if (selectedType === 'activity') {
-            const { data } = await http.get('/employees');
-            // Employees don't have 'activity logs' exposed in simple list usually, 
-            // so we'll export employee status summary
+            const { data } = await http.get('/api/employees');
             formattedData = data.map(emp => ({
-                ID: emp._id,
+                ID: emp._id.slice(-8),
                 Name: emp.name,
+                Email: emp.email,
+                Phone: emp.phone || 'N/A',
                 Role: emp.role,
+                Designation: emp.designation || 'N/A',
+                Department: emp.department || 'N/A',
                 Status: emp.status ? 'Active' : 'Inactive',
-                LastLogin: emp.lastLogin ? new Date(emp.lastLogin).toLocaleString() : 'Never',
-                Email: emp.email
+                JoinDate: emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString('en-IN') : 'N/A'
             }));
-             // No time filter applied to static employee list typically, unless we filtered by lastLogin
         }
 
         if (formattedData.length === 0) {

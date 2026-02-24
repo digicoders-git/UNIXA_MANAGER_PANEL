@@ -79,6 +79,9 @@ export default function Dashboard() {
   const cardBg = useColorModeValue('white', 'gray.800');
   const gridColor = useColorModeValue('#EDF2F7', '#2D3748');
   const activityHoverBg = useColorModeValue('gray.50', 'gray.700');
+  const tooltipBg = useColorModeValue('#fff', '#1A202C');
+  const tooltipTextColor = useColorModeValue('#1A202C', '#fff');
+  const legendItemColor = useColorModeValue('#2D3748', '#A0AEC0');
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -107,7 +110,7 @@ export default function Dashboard() {
       setLoading(true);
       const response = await http.get('/manager-dashboard/stats');
       const { stats, chart, recentActivity } = response.data;
-      
+
       setStats(stats);
       setChartData(chart);
       setRecentActivity(recentActivity);
@@ -127,8 +130,8 @@ export default function Dashboard() {
 
   // Highcharts Configuration for Weekly Performance
   const chartOptions = {
-    chart: { 
-      type: 'areaspline', 
+    chart: {
+      type: 'areaspline',
       backgroundColor: 'transparent',
       height: 350,
       style: { fontFamily: 'Inter, sans-serif' }
@@ -147,10 +150,10 @@ export default function Dashboard() {
     },
     tooltip: {
       shared: true,
-      backgroundColor: useColorModeValue('#fff', '#1A202C'),
+      backgroundColor: tooltipBg,
       borderColor: '#3182CE',
       borderRadius: 10,
-      style: { color: useColorModeValue('#1A202C', '#fff') }
+      style: { color: tooltipTextColor }
     },
     plotOptions: {
       areaspline: {
@@ -163,9 +166,9 @@ export default function Dashboard() {
     },
     series: chartData.series,
     credits: { enabled: false },
-    legend: { 
-      itemStyle: { color: useColorModeValue('#2D3748', '#A0AEC0') },
-      verticalAlign: 'top' 
+    legend: {
+      itemStyle: { color: legendItemColor },
+      verticalAlign: 'top'
     }
   };
 
@@ -181,11 +184,11 @@ export default function Dashboard() {
     <Box>
       <VStack align="start" spacing={1} mb={8}>
         <Heading size="lg" fontWeight="extrabold" letterSpacing="tight">
-          Manager Overview 
+          Manager Overview
         </Heading>
         <Text color="gray.500">Track team performance and metrics in real-time.</Text>
       </VStack>
-      
+
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
         <StatCard
           title="Total Tickets"
@@ -194,7 +197,7 @@ export default function Dashboard() {
           helpText="Total Complaints"
           type="increase"
           color="blue"
-          onClick={() => navigate('/assign-ticket')} 
+          onClick={() => navigate('/assign-ticket')}
         />
         <StatCard
           title="Total Leads"
@@ -203,7 +206,7 @@ export default function Dashboard() {
           helpText="New Enquiries"
           type="increase"
           color="teal"
-          onClick={() => navigate('/manage-lead')} 
+          onClick={() => navigate('/manage-lead')}
         />
         <StatCard
           title="Pending Tickets"
@@ -221,7 +224,7 @@ export default function Dashboard() {
           helpText="Active Staff"
           type="increase"
           color="orange"
-           onClick={() => navigate('/monitor-employee')} 
+          onClick={() => navigate('/monitor-employee')}
         />
       </SimpleGrid>
 
@@ -260,7 +263,7 @@ export default function Dashboard() {
                 </Flex>
               ))
             ) : (
-                <Text fontSize="sm" color="gray.500">No recent activity.</Text>
+              <Text fontSize="sm" color="gray.500">No recent activity.</Text>
             )}
           </VStack>
         </Box>

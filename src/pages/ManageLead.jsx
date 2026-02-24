@@ -37,16 +37,16 @@ import {
   useColorModeValue,
   Avatar,
 } from '@chakra-ui/react';
-import { 
-  FiPlus, 
-  FiSearch, 
-  FiEdit2, 
-  FiTrash2, 
-  FiEye, 
-  FiMail, 
-  FiGlobe, 
-  FiCalendar, 
-  FiChevronLeft, 
+import {
+  FiPlus,
+  FiSearch,
+  FiEdit2,
+  FiTrash2,
+  FiEye,
+  FiMail,
+  FiGlobe,
+  FiCalendar,
+  FiChevronLeft,
   FiChevronRight,
   FiSend,
   FiUser,
@@ -102,7 +102,7 @@ export default function ManageLead() {
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const response = await http.get('/enquiry'); 
+      const response = await http.get('/enquiry');
       // The controller returns { enquiries: [...] }
       const formattedLeads = response.data.enquiries.map(lead => ({
         id: lead._id,
@@ -125,39 +125,39 @@ export default function ManageLead() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-        const payload = {
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            subject: formData.source, 
-            message: 'Lead created/updated from Manager Panel',
-            status: formData.status
-        };
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        subject: formData.source,
+        message: 'Lead created/updated from Manager Panel',
+        status: formData.status
+      };
 
-        if (editingLead) {
-             await http.put(`/enquiry/${editingLead.id}`, payload);
-             toast({ title: 'Lead Updated Successfully', status: 'success', position: 'top-right' });
-        } else {
-            await http.post('/enquiry', payload);
-            toast({ title: 'Lead Added Successfully', status: 'success', position: 'top-right' });
-        }
-        fetchLeads(); // Refresh list
-        handleCloseForm();
+      if (editingLead) {
+        await http.put(`/enquiry/${editingLead.id}`, payload);
+        toast({ title: 'Lead Updated Successfully', status: 'success', position: 'top-right' });
+      } else {
+        await http.post('/enquiry', payload);
+        toast({ title: 'Lead Added Successfully', status: 'success', position: 'top-right' });
+      }
+      fetchLeads(); // Refresh list
+      handleCloseForm();
     } catch (error) {
-         console.error("Operation Failed:", error);
-         toast({ title: 'Operation Failed', description: error.response?.data?.message || "Server Error", status: 'error', position: 'top-right' });
+      console.error("Operation Failed:", error);
+      toast({ title: 'Operation Failed', description: error.response?.data?.message || "Server Error", status: 'error', position: 'top-right' });
     }
   };
 
   const handleDelete = async (id) => {
-    if(!window.confirm("Are you sure you want to delete this lead?")) return;
+    if (!window.confirm("Are you sure you want to delete this lead?")) return;
     try {
-        await http.delete(`/enquiry/${id}`);
-        setLeads(leads.filter(l => l.id !== id));
-        toast({ title: 'Lead Deleted', status: 'success', position: 'top-right' });
+      await http.delete(`/enquiry/${id}`);
+      setLeads(leads.filter(l => l.id !== id));
+      toast({ title: 'Lead Deleted', status: 'success', position: 'top-right' });
     } catch (error) {
-        console.error("Delete Failed:", error);
-        toast({ title: 'Delete Failed', status: 'error', position: 'top-right' });
+      console.error("Delete Failed:", error);
+      toast({ title: 'Delete Failed', status: 'error', position: 'top-right' });
     }
   };
 
@@ -187,7 +187,7 @@ export default function ManageLead() {
   };
 
   const filteredLeads = useMemo(() => {
-    return leads.filter(lead => 
+    return leads.filter(lead =>
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -208,17 +208,17 @@ export default function ManageLead() {
           </Heading>
           <Text color="gray.500">Track, follow up, and convert potential clients into sales.</Text>
         </VStack>
-        
+
         <HStack spacing={3} w={{ base: 'full', md: 'auto' }}>
           <InputGroup maxW="300px">
             <InputLeftElement pointerEvents="none">
               <FiSearch color="gray.300" />
             </InputLeftElement>
-            <Input 
-              placeholder="Search leads..." 
+            <Input
+              placeholder="Search leads..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              bg={cardBg} 
+              bg={cardBg}
               borderRadius="xl" focusBorderColor="blue.500" borderColor={borderColor}
             />
           </InputGroup>
@@ -304,28 +304,28 @@ export default function ManageLead() {
               Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredLeads.length)} of {filteredLeads.length} results
             </Text>
             <HStack spacing={2}>
-              <IconButton 
-                icon={<FiChevronLeft />} 
-                size="sm" 
-                isDisabled={currentPage === 1} 
-                onClick={() => setCurrentPage(prev => prev - 1)} 
+              <IconButton
+                icon={<FiChevronLeft />}
+                size="sm"
+                isDisabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
               />
               {[...Array(totalPages)].map((_, i) => (
-                <Button 
-                  key={i} 
-                  size="sm" 
-                  colorScheme={currentPage === i + 1 ? "blue" : "gray"} 
+                <Button
+                  key={i}
+                  size="sm"
+                  colorScheme={currentPage === i + 1 ? "blue" : "gray"}
                   variant={currentPage === i + 1 ? "solid" : "ghost"}
                   onClick={() => setCurrentPage(i + 1)}
                 >
                   {i + 1}
                 </Button>
               ))}
-              <IconButton 
-                icon={<FiChevronRight />} 
-                size="sm" 
-                isDisabled={currentPage === totalPages} 
-                onClick={() => setCurrentPage(prev => prev + 1)} 
+              <IconButton
+                icon={<FiChevronRight />}
+                size="sm"
+                isDisabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
               />
             </HStack>
           </Flex>
@@ -349,40 +349,40 @@ export default function ManageLead() {
               <Stack spacing={4}>
                 <FormControl isRequired>
                   <FormLabel fontWeight="600">Full Name</FormLabel>
-                  <Input 
-                    placeholder="Enter customer name" 
+                  <Input
+                    placeholder="Enter customer name"
                     borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </FormControl>
                 <HStack>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Email</FormLabel>
-                    <Input 
-                      type="email" placeholder="example@mail.com" 
+                    <Input
+                      type="email" placeholder="example@mail.com"
                       borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </FormControl>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Phone</FormLabel>
-                    <Input 
-                      placeholder="+91..." 
+                    <Input
+                      placeholder="+91..."
                       borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     />
                   </FormControl>
                 </HStack>
                 <HStack>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Source</FormLabel>
-                    <Select 
+                    <Select
                       borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.source}
-                      onChange={(e) => setFormData({...formData, source: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, source: e.target.value })}
                     >
                       <option value="Website">Website</option>
                       <option value="Referral">Referral</option>
@@ -398,10 +398,10 @@ export default function ManageLead() {
                   </FormControl>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Status</FormLabel>
-                    <Select 
+                    <Select
                       borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.status}
-                      onChange={(e) => setFormData({...formData, status: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     >
                       <option value="new">New</option>
                       <option value="in-progress">In Progress</option>

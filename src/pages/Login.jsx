@@ -37,8 +37,8 @@ export default function Login() {
 
     try {
       console.log('🔄 Login attempt:', { email, apiUrl: import.meta.env.VITE_API_BASE_URL });
-      
-      const response = await http.post('/api/employees/login', {
+
+      const response = await http.post('/employees/login', {
         email,
         password
       });
@@ -62,9 +62,9 @@ export default function Login() {
       console.error('❌ Error:', error);
       console.error('Response:', error.response?.data);
       console.error('Status:', error.response?.status);
-      
+
       const errorMsg = error.response?.data?.message || error.message || 'Invalid email or password';
-      
+
       toast({
         title: 'Login Failed',
         description: errorMsg,
@@ -72,7 +72,7 @@ export default function Login() {
         duration: 5000,
         isClosable: true,
       });
-      
+
       alert(`❌ Login Failed\n\nError: ${errorMsg}\n\nCheck console (F12) for details`);
     } finally {
       setLoading(false);
@@ -107,10 +107,10 @@ export default function Login() {
             <Stack spacing={5} as="form" onSubmit={handleLogin}>
               <FormControl id="email" isRequired>
                 <FormLabel fontWeight="600">Email Address</FormLabel>
-                <Input 
-                  type="email" 
-                  placeholder="name@company.com" 
-                  size="lg" 
+                <Input
+                  type="email"
+                  placeholder="name@company.com"
+                  size="lg"
                   borderRadius="xl"
                   focusBorderColor="blue.500"
                   bg={useColorModeValue('gray.50', 'gray.700')}

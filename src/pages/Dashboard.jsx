@@ -21,6 +21,7 @@ import {
   Center
 } from '@chakra-ui/react';
 import { FiTrendingUp, FiClipboard, FiActivity, FiUsers, FiCheckCircle } from 'react-icons/fi';
+import { FaShieldAlt, FaTimesCircle } from 'react-icons/fa';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import { useNavigate } from 'react-router-dom';
@@ -90,7 +91,10 @@ export default function Dashboard() {
     totalTickets: 0,
     pendingTickets: 0,
     totalLeads: 0,
-    totalEmployees: 0
+    totalEmployees: 0,
+    totalAmcs: 0,
+    activeAmcs: 0,
+    dueAmcs: 0
   });
   const [chartData, setChartData] = useState({
     categories: [],
@@ -104,16 +108,12 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Assuming API base URL is set in axios defaults or we use full path
-      // Since Login uses full path, I will use full path here too for consistency, 
-      // though creating an axios instance or setting base URL
       setLoading(true);
-      const response = await http.get('/manager-dashboard/stats');
-      const { stats, chart, recentActivity } = response.data;
+      const { data } = await http.get('/manager-dashboard/stats');
 
-      setStats(stats);
-      setChartData(chart);
-      setRecentActivity(recentActivity);
+      setStats(data.stats);
+      setChartData(data.chart);
+      setRecentActivity(data.recentActivity);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -218,6 +218,18 @@ export default function Dashboard() {
           onClick={() => navigate('/assign-ticket?status=pending')} // In future, handle filters or just navigate
         />
         <StatCard
+          title="Active AMCs"
+          stat={stats.activeAmcs}
+          icon={FaShieldAlt}
+          helpText="AMC Subscriptions"
+          type="increase"
+          color="green"
+          onClick={() => navigate('/amc-management')}
+        />
+      </SimpleGrid>
+
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
+        <StatCard
           title="Total Employees"
           stat={stats.totalEmployees}
           icon={FiUsers}
@@ -225,6 +237,33 @@ export default function Dashboard() {
           type="increase"
           color="orange"
           onClick={() => navigate('/monitor-employee')}
+        />
+        <StatCard
+          title="Service Due AMCs"
+          stat={stats.dueAmcs}
+          icon={FaShieldAlt}
+          helpText="Services Pending"
+          type="increase"
+          color="orange"
+          onClick={() => navigate('/amc-management')}
+        />
+        <StatCard
+          title="Expired AMCs"
+          stat={stats.expiredAmcs}
+          icon={FaTimesCircle}
+          helpText="Renewals Needed"
+          type="decrease"
+          color="red"
+          onClick={() => navigate('/amc-management')}
+        />
+        <StatCard
+          title="Total AMCs"
+          stat={stats.totalAmcs}
+          icon={FaShieldAlt}
+          helpText="Complete Record"
+          type="increase"
+          color="purple"
+          onClick={() => navigate('/amc-management')}
         />
       </SimpleGrid>
 

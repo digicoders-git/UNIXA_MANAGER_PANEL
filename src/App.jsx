@@ -18,6 +18,7 @@ import Profile from './pages/Profile';
 import ChangePassword from './pages/ChangePassword';
 import Notifications from './pages/Notifications';
 import ServiceRequests from './pages/ServiceRequests';
+import AMCManagement from './pages/AMCManagement';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -177,6 +178,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <ServiceRequests />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/amc-management" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AMCManagement />
                 </DashboardLayout>
               </ProtectedRoute>
             } 

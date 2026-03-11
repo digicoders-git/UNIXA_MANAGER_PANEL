@@ -37,15 +37,15 @@ import {
   Icon,
   Tooltip,
 } from '@chakra-ui/react';
-import { 
-  FiPlus, 
-  FiEdit2, 
-  FiTrash2, 
-  FiSearch, 
-  FiMail, 
-  FiCalendar, 
-  FiBriefcase, 
-  FiSend, 
+import {
+  FiPlus,
+  FiEdit2,
+  FiTrash2,
+  FiSearch,
+  FiMail,
+  FiCalendar,
+  FiBriefcase,
+  FiSend,
   FiEye,
   FiChevronLeft,
   FiChevronRight,
@@ -70,11 +70,11 @@ export default function ManageEmployee() {
 
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewingEmployee, setViewingEmployee] = useState(null);
-  const [formData, setFormData] = useState({ 
-    firstName: '', 
-    lastName: '', 
-    email: '', 
-    role: '', 
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    role: '',
     department: '',
     status: 'Active'
   });
@@ -100,7 +100,7 @@ export default function ManageEmployee() {
           email: emp.email,
           role: emp.role,
           department: emp.designation || 'N/A',
-          joined: new Date(emp.createdAt).toISOString().split('T')[0],
+          joined: emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString() : (emp.createdAt ? new Date(emp.createdAt).toLocaleDateString() : 'N/A'),
           avatar: '',
           status: emp.status ? 'Active' : 'Inactive'
         }));
@@ -118,13 +118,13 @@ export default function ManageEmployee() {
     try {
       // In a real app, you would make a POST request here
       // const response = await axios.post('http://localhost:5000/api/employees', { ...formData });
-      
+
       // For now, just simulating frontend update as per previous logic, 
       // but ideally this should talk to backend.
       // Since the request was only to make Dashboard Stats click dynamic, 
       // I am fetching data for display. Full CRUD might be separate task unless "fully dynamic" implies CRUD too.
       // Assuming "fully dynamic" means everything visible talks to DB.
-      
+
       const payload = {
         name: `${formData.firstName} ${formData.lastName}`,
         email: formData.email,
@@ -135,39 +135,39 @@ export default function ManageEmployee() {
       };
 
       if (editingEmployee) {
-          // Update Logic
-          // await axios.put(`http://localhost:5000/api/employees/${editingEmployee.id}`, payload);
-          // fetchEmployees();
-           setEmployees(employees.map(emp => emp.id === editingEmployee.id ? { 
-            ...emp, 
-            name: `${formData.firstName} ${formData.lastName}`,
-            email: formData.email,
-            role: formData.role,
-            department: formData.department,
-            status: formData.status
-          } : emp));
-          toast({ title: 'Employee Updated (Simulated)', status: 'success', position: 'top-right' });
+        // Update Logic
+        // await axios.put(`http://localhost:5000/api/employees/${editingEmployee.id}`, payload);
+        // fetchEmployees();
+        setEmployees(employees.map(emp => emp.id === editingEmployee.id ? {
+          ...emp,
+          name: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email,
+          role: formData.role,
+          department: formData.department,
+          status: formData.status
+        } : emp));
+        toast({ title: 'Employee Updated (Simulated)', status: 'success', position: 'top-right' });
       } else {
-         // Create Logic
-         // await axios.post('http://localhost:5000/api/employees', payload);
-         // fetchEmployees();
-         
+        // Create Logic
+        // await axios.post('http://localhost:5000/api/employees', payload);
+        // fetchEmployees();
+
         const newEmployee = {
-            id: Date.now(), // Temporary ID until backend integrated for create
-            name: `${formData.firstName} ${formData.lastName}`,
-            email: formData.email,
-            role: formData.role,
-            department: formData.department,
-            joined: new Date().toISOString().split('T')[0],
-            avatar: '',
-            status: 'Active'
+          id: Date.now(), // Temporary ID until backend integrated for create
+          name: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email,
+          role: formData.role,
+          department: formData.department,
+          joined: new Date().toISOString().split('T')[0],
+          avatar: '',
+          status: 'Active'
         };
         setEmployees([newEmployee, ...employees]);
         toast({ title: 'Employee Added (Simulated)', status: 'success', position: 'top-right' });
       }
       handleCloseForm();
     } catch (error) {
-         toast({ title: 'Operation Failed', status: 'error', position: 'top-right' });
+      toast({ title: 'Operation Failed', status: 'error', position: 'top-right' });
     }
   };
 
@@ -224,17 +224,17 @@ export default function ManageEmployee() {
           </Heading>
           <Text color="gray.500">Manage your workforce, assign roles, and track team structure.</Text>
         </VStack>
-        
+
         <HStack spacing={3} w={{ base: 'full', md: 'auto' }}>
           <InputGroup maxW="300px">
             <InputLeftElement pointerEvents="none">
               <FiSearch color="gray.300" />
             </InputLeftElement>
-            <Input 
-              placeholder="Search team..." 
+            <Input
+              placeholder="Search team..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              bg={cardBg} 
+              bg={cardBg}
               borderRadius="xl" focusBorderColor="blue.500" borderColor={borderColor}
             />
           </InputGroup>
@@ -325,28 +325,28 @@ export default function ManageEmployee() {
               Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredEmployees.length)} of {filteredEmployees.length} results
             </Text>
             <HStack spacing={2}>
-              <IconButton 
-                icon={<FiChevronLeft />} 
-                size="sm" 
-                isDisabled={currentPage === 1} 
-                onClick={() => setCurrentPage(prev => prev - 1)} 
+              <IconButton
+                icon={<FiChevronLeft />}
+                size="sm"
+                isDisabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
               />
               {[...Array(totalPages)].map((_, i) => (
-                <Button 
-                  key={i} 
-                  size="sm" 
-                  colorScheme={currentPage === i + 1 ? "blue" : "gray"} 
+                <Button
+                  key={i}
+                  size="sm"
+                  colorScheme={currentPage === i + 1 ? "blue" : "gray"}
                   variant={currentPage === i + 1 ? "solid" : "ghost"}
                   onClick={() => setCurrentPage(i + 1)}
                 >
                   {i + 1}
                 </Button>
               ))}
-              <IconButton 
-                icon={<FiChevronRight />} 
-                size="sm" 
-                isDisabled={currentPage === totalPages} 
-                onClick={() => setCurrentPage(prev => prev + 1)} 
+              <IconButton
+                icon={<FiChevronRight />}
+                size="sm"
+                isDisabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
               />
             </HStack>
           </Flex>
@@ -371,39 +371,39 @@ export default function ManageEmployee() {
                 <HStack spacing={4}>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">First Name</FormLabel>
-                    <Input 
-                      placeholder="e.g. Rahul" 
+                    <Input
+                      placeholder="e.g. Rahul"
                       borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.firstName}
-                      onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     />
                   </FormControl>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Last Name</FormLabel>
-                    <Input 
-                      placeholder="e.g. Sharma" 
+                    <Input
+                      placeholder="e.g. Sharma"
                       borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.lastName}
-                      onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     />
                   </FormControl>
                 </HStack>
                 <FormControl isRequired>
                   <FormLabel fontWeight="600">Email Address</FormLabel>
-                  <Input 
-                    type="email" placeholder="name@company.com" 
+                  <Input
+                    type="email" placeholder="name@company.com"
                     borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </FormControl>
                 <HStack>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Department</FormLabel>
-                    <Select 
+                    <Select
                       placeholder="Select dept" borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.department}
-                      onChange={(e) => setFormData({...formData, department: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                     >
                       <option value="Support">Support</option>
                       <option value="Sales">Sales</option>
@@ -415,10 +415,10 @@ export default function ManageEmployee() {
                   </FormControl>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Role</FormLabel>
-                    <Select 
+                    <Select
                       placeholder="Select role" borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.role}
-                      onChange={(e) => setFormData({...formData, role: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                     >
                       <option value="Support Agent">Support Agent</option>
                       <option value="Sales Lead">Sales Lead</option>

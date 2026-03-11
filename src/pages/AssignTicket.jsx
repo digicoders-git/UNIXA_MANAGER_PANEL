@@ -312,7 +312,12 @@ export default function AssignTicket() {
             </Tr>
           </Thead>
           <Tbody>
-            {currentItems.map((ticket) => (
+            {loading ? (
+              <Tr><Td colSpan="7" textAlign="center" py={10}><Text>Loading tickets...</Text></Td></Tr>
+            ) : currentItems.length === 0 ? (
+              <Tr><Td colSpan="7" textAlign="center" py={10}><Text color="gray.400">No tickets found.</Text></Td></Tr>
+            ) : (
+              currentItems.map((ticket) => (
               <Tr key={ticket.id} _hover={{ bg: tableHeaderBg }} transition="0.2s">
                 <Td py={5}>
                   <HStack spacing={3}>
@@ -373,7 +378,8 @@ export default function AssignTicket() {
                   </HStack>
                 </Td>
               </Tr>
-            ))}
+            ))
+          )}
           </Tbody>
         </Table>
 

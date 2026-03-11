@@ -30,6 +30,7 @@ import {
   Stack,
   HStack,
   Text,
+  Textarea,
   VStack,
   useToast,
   Icon,
@@ -59,6 +60,9 @@ const initialLeads = [];
 
 export default function ManageLead() {
   const [leads, setLeads] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [assignedTickets, setAssignedTickets] = useState([]);
+  const [ticketsLoaded, setTicketsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,15 +71,26 @@ export default function ManageLead() {
 
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isViewOpen, onOpen: onViewOpen, onClose: onViewClose } = useDisclosure();
+  const { isOpen: isAssignOpen, onOpen: onAssignOpen, onClose: onAssignClose } = useDisclosure();
 
   const [editingLead, setEditingLead] = useState(null);
   const [viewingLead, setViewingLead] = useState(null);
+  const [selectedLeadForAssign, setSelectedLeadForAssign] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
+    address: '',
+    productInterest: '',
     source: 'Website',
-    status: 'new'
+    status: 'Warm'
+  });
+
+  const [assignData, setAssignData] = useState({
+    employee: '',
+    priority: 'Medium',
+    dueDate: '',
+    description: ''
   });
 
   const cardBg = useColorModeValue('white', 'gray.800');
@@ -95,30 +110,94 @@ export default function ManageLead() {
     }
   };
 
+  const getLeadTicketStatus = (leadId) => {
+    const ticket = assignedTickets.find(t => {
+      if (t.ticketType !== 'lead') return false;
+
+      const ticketLeadId = typeof t.leadId === 'object' ? t.leadId?._id : t.leadId;
+
+      return ticketLeadId === leadId ||
+        ticketLeadId?.toString() === leadId?.toString() ||
+        String(ticketLeadId) === String(leadId);
+    });
+
+    return ticket ? ticket.status : null;
+  };
+
+  const getTicketStatusColor = (status) => {
+    switch (status) {
+      case 'Pending': return 'yellow';
+      case 'In Progress': return 'blue';
+      case 'Completed': return 'green';
+      case 'Cancelled': return 'red';
+      default: return 'gray';
+    }
+  };
+
   useEffect(() => {
-    fetchLeads();
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchLeads(),
+        fetchEmployees(),
+        fetchAssignedTickets()
+      ]);
+      setLoading(false);
+    };
+    loadData();
   }, []);
+
+  // Auto-refresh assigned tickets every 5 seconds for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading) {
+        fetchAssignedTickets();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await http.get('/employees');
+      const filteredEmployees = response.data.filter(emp => emp.role !== 'Manager');
+      setEmployees(filteredEmployees);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  };
 
   const fetchLeads = async () => {
     try {
-      setLoading(true);
-      const response = await http.get('/enquiry');
-      // The controller returns { enquiries: [...] }
-      const formattedLeads = response.data.enquiries.map(lead => ({
+      const response = await http.get('/leads');
+      const leadsData = response.data.leads || response.data || [];
+      const formattedLeads = leadsData.map(lead => ({
         id: lead._id,
         name: lead.name,
         email: lead.email,
         phone: lead.phone,
-        source: lead.subject || 'Website', // Mapping subject to source
-        status: lead.status || 'new',
-        date: new Date(lead.createdAt).toISOString().split('T')[0]
+        address: lead.address,
+        productInterest: lead.productInterest,
+        source: lead.source || 'Field Visit',
+        status: lead.leadStatus || 'Warm',
+        date: lead.createdAt ? new Date(lead.createdAt).toISOString().split('T')[0] : 'N/A'
       }));
       setLeads(formattedLeads);
     } catch (error) {
       console.error("Error fetching leads:", error);
       toast({ title: 'Error fetching leads', status: 'error', isClosable: true });
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchAssignedTickets = async () => {
+    try {
+      const response = await http.get('/assigned-tickets');
+      setAssignedTickets(Array.isArray(response.data) ? response.data : []);
+      setTicketsLoaded(true);
+    } catch (error) {
+      console.error("Error fetching assigned tickets:", error);
+      setAssignedTickets([]);
+      setTicketsLoaded(true);
     }
   };
 
@@ -129,16 +208,17 @@ export default function ManageLead() {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        subject: formData.source,
-        message: 'Lead created/updated from Manager Panel',
-        status: formData.status
+        address: formData.address,
+        productInterest: formData.productInterest,
+        source: formData.source,
+        leadStatus: formData.status
       };
 
       if (editingLead) {
-        await http.put(`/enquiry/${editingLead.id}`, payload);
+        await http.put(`/leads/${editingLead.id}`, payload);
         toast({ title: 'Lead Updated Successfully', status: 'success', position: 'top-right' });
       } else {
-        await http.post('/enquiry', payload);
+        await http.post('/leads', payload);
         toast({ title: 'Lead Added Successfully', status: 'success', position: 'top-right' });
       }
       fetchLeads(); // Refresh list
@@ -149,10 +229,55 @@ export default function ManageLead() {
     }
   };
 
+  const handleAssignSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (!selectedLeadForAssign) return;
+
+      const userData = JSON.parse(localStorage.getItem('manager-data') || '{}');
+      const managerName = userData.name || 'Manager';
+
+      const ticketData = {
+        ticketType: 'lead',
+        leadId: selectedLeadForAssign.id,
+        title: `Lead Assignment: ${selectedLeadForAssign.name}`,
+        assignedTo: assignData.employee,
+        assignedBy: managerName,
+        priority: assignData.priority,
+        dueDate: assignData.dueDate ? new Date(assignData.dueDate) : null,
+        description: assignData.description,
+        status: 'Pending',
+        customerName: selectedLeadForAssign.name,
+        customerPhone: selectedLeadForAssign.phone,
+        customerEmail: selectedLeadForAssign.email,
+        address: selectedLeadForAssign.address || ""
+      };
+
+      await http.post('/assigned-tickets', ticketData);
+      toast({ title: "Ticket Assigned Successfully", status: "success", position: "top-right" });
+      onAssignClose();
+      setAssignData({ employee: '', priority: 'Medium', dueDate: '', description: '' });
+      setSelectedLeadForAssign(null);
+      // Refresh tickets immediately after assignment for real-time update
+      setTimeout(() => {
+        fetchAssignedTickets();
+      }, 500);
+    } catch (error) {
+      console.error('Error assigning lead:', error);
+      const detail = error.response?.data?.error || error.response?.data?.message || error.message;
+      toast({ title: "Assignment Failed", description: detail, status: "error", position: "top-right" });
+    }
+  };
+
+  const openAssignModal = (lead) => {
+    setSelectedLeadForAssign(lead);
+    onAssignOpen();
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this lead?")) return;
     try {
-      await http.delete(`/enquiry/${id}`);
+      await http.delete(`/leads/${id}`);
       setLeads(leads.filter(l => l.id !== id));
       toast({ title: 'Lead Deleted', status: 'success', position: 'top-right' });
     } catch (error) {
@@ -167,6 +292,8 @@ export default function ManageLead() {
       name: lead.name,
       email: lead.email,
       phone: lead.phone || '',
+      address: lead.address || '',
+      productInterest: lead.productInterest || '',
       source: lead.source,
       status: lead.status
     });
@@ -182,7 +309,7 @@ export default function ManageLead() {
   const handleCloseForm = () => {
     setEditingLead(null);
     setEditingLead(null);
-    setFormData({ name: '', email: '', phone: '', source: 'Website', status: 'new' });
+    setFormData({ name: '', email: '', phone: '', address: '', productInterest: '', source: 'Website', status: 'Warm' });
     onFormClose();
   };
 
@@ -225,6 +352,9 @@ export default function ManageLead() {
           <Button leftIcon={<FiPlus />} colorScheme="blue" onClick={onFormOpen} borderRadius="xl" px={6} shadow="blue-md">
             Add Lead
           </Button>
+          <Button leftIcon={<FiSend />} colorScheme="purple" onClick={onAssignOpen} borderRadius="xl" px={6} shadow="purple-md">
+            Assign Lead
+          </Button>
         </HStack>
       </Flex>
 
@@ -236,6 +366,7 @@ export default function ManageLead() {
               <Th py={5}>Contact Information</Th>
               <Th py={5}>Source</Th>
               <Th py={5}>Status</Th>
+              <Th py={5}>Ticket Status</Th>
               <Th py={5}>Created Date</Th>
               <Th py={5} textAlign="right">Actions</Th>
             </Tr>
@@ -267,6 +398,20 @@ export default function ManageLead() {
                   </Badge>
                 </Td>
                 <Td py={5}>
+                  {(() => {
+                    const ticketStatus = getLeadTicketStatus(lead.id);
+                    return ticketStatus ? (
+                      <Badge colorScheme={getTicketStatusColor(ticketStatus)} variant="subtle" px={3} py={1} rounded="full">
+                        {ticketStatus}
+                      </Badge>
+                    ) : (
+                      <Badge colorScheme="gray" variant="subtle" px={3} py={1} rounded="full">
+                        Not Assigned
+                      </Badge>
+                    );
+                  })()}
+                </Td>
+                <Td py={5}>
                   <HStack spacing={2} color="gray.500">
                     <Icon as={FiCalendar} />
                     <Text fontSize="sm">{lead.date}</Text>
@@ -279,6 +424,9 @@ export default function ManageLead() {
                     </Tooltip>
                     <Tooltip label="Edit Lead">
                       <IconButton icon={<FiEdit2 />} size="sm" variant="ghost" colorScheme="blue" onClick={() => handleEdit(lead)} />
+                    </Tooltip>
+                    <Tooltip label="Assign Lead">
+                      <IconButton icon={<FiSend />} size="sm" variant="ghost" colorScheme="purple" onClick={() => openAssignModal(lead)} />
                     </Tooltip>
                     <Tooltip label="Delete Lead">
                       <IconButton icon={<FiTrash2 />} size="sm" variant="ghost" colorScheme="red" onClick={() => handleDelete(lead.id)} />
@@ -356,6 +504,24 @@ export default function ManageLead() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </FormControl>
+                <FormControl>
+                  <FormLabel fontWeight="600">Address</FormLabel>
+                  <Input
+                    placeholder="Enter address"
+                    borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel fontWeight="600">Product Interest</FormLabel>
+                  <Input
+                    placeholder="What product/service are they interested in?"
+                    borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
+                    value={formData.productInterest}
+                    onChange={(e) => setFormData({ ...formData, productInterest: e.target.value })}
+                  />
+                </FormControl>
                 <HStack>
                   <FormControl isRequired>
                     <FormLabel fontWeight="600">Email</FormLabel>
@@ -397,15 +563,15 @@ export default function ManageLead() {
                     </Select>
                   </FormControl>
                   <FormControl isRequired>
-                    <FormLabel fontWeight="600">Status</FormLabel>
+                    <FormLabel fontWeight="600">Lead Status</FormLabel>
                     <Select
                       borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     >
-                      <option value="new">New</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="resolved">Resolved</option>
+                      <option value="Hot">Hot</option>
+                      <option value="Warm">Warm</option>
+                      <option value="Cold">Cold</option>
                     </Select>
                   </FormControl>
                 </HStack>
@@ -482,6 +648,115 @@ export default function ManageLead() {
           <ModalFooter>
             <Button colorScheme="blue" w="full" onClick={onViewClose} borderRadius="xl">Close Profile</Button>
           </ModalFooter>
+        </ModalContent>
+      </Modal>
+      {/* Assign Ticket Modal */}
+      <Modal isOpen={isAssignOpen} onClose={onAssignClose} size="4xl" isCentered>
+        <ModalOverlay backdropFilter="blur(5px)" />
+        <ModalContent borderRadius="2xl" border="1px solid" borderColor={borderColor}>
+          <ModalHeader py={6}>
+            <HStack>
+              <Icon as={FiSend} color="purple.500" />
+              <Text>Assign Lead Ticket</Text>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton mt={2} />
+          <Divider />
+          <form onSubmit={handleAssignSubmit}>
+            <ModalBody py={6}>
+              <Stack spacing={6}>
+                <HStack spacing={6} align="start">
+                  <VStack flex={1} align="stretch" spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel fontWeight="600">Select Lead</FormLabel>
+                      <Select
+                        placeholder="Choose a lead to assign"
+                        borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
+                        value={selectedLeadForAssign?.id || ''}
+                        onChange={(e) => {
+                          const lead = leads.find(l => l.id === e.target.value);
+                          setSelectedLeadForAssign(lead);
+                        }}
+                      >
+                        {leads.map(lead => (
+                          <option key={lead.id} value={lead.id}>
+                            {lead.name} - {lead.phone} ({lead.status})
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel fontWeight="600">Assign To (Employee)</FormLabel>
+                      <Select
+                        placeholder="Select team member" borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
+                        value={assignData.employee}
+                        onChange={(e) => setAssignData({ ...assignData, employee: e.target.value })}
+                      >
+                        {employees.map(emp => (
+                          <option key={emp._id} value={emp.name}>
+                            {emp.name} - {emp.designation || emp.role}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <HStack>
+                      <FormControl isRequired>
+                        <FormLabel fontWeight="600">Priority</FormLabel>
+                        <Select
+                          borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
+                          value={assignData.priority}
+                          onChange={(e) => setAssignData({ ...assignData, priority: e.target.value })}
+                        >
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                        </Select>
+                      </FormControl>
+                      <FormControl isRequired>
+                        <FormLabel fontWeight="600">Due Date</FormLabel>
+                        <Input
+                          type="date" borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
+                          value={assignData.dueDate}
+                          onChange={(e) => setAssignData({ ...assignData, dueDate: e.target.value })}
+                        />
+                      </FormControl>
+                    </HStack>
+                  </VStack>
+
+                  <VStack flex={1} align="stretch" spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel fontWeight="600">Task Instructions</FormLabel>
+                      <Textarea
+                        placeholder="Provide details about what the employee needs to do with this lead..."
+                        borderRadius="xl" rows={8} bg={useColorModeValue('gray.50', 'gray.900')}
+                        value={assignData.description}
+                        onChange={(e) => setAssignData({ ...assignData, description: e.target.value })}
+                      />
+                    </FormControl>
+
+                    {selectedLeadForAssign && (
+                      <Box p={4} bg="purple.50" borderRadius="xl" border="1px solid" borderColor="purple.100">
+                        <Text fontWeight="bold" fontSize="xs" color="purple.600" textTransform="uppercase" mb={2}>Selected Lead Info</Text>
+                        <VStack align="start" spacing={1}>
+                          <Text fontSize="sm"><strong>Name:</strong> {selectedLeadForAssign.name}</Text>
+                          <Text fontSize="sm"><strong>Phone:</strong> {selectedLeadForAssign.phone}</Text>
+                          <Text fontSize="sm"><strong>Interest:</strong> {selectedLeadForAssign.productInterest || 'N/A'}</Text>
+                        </VStack>
+                      </Box>
+                    )}
+                  </VStack>
+                </HStack>
+              </Stack>
+            </ModalBody>
+            <ModalFooter py={6} bg={useColorModeValue('gray.50', 'gray.850')} borderBottomRadius="2xl">
+              <Button variant="ghost" mr={3} onClick={onAssignClose} borderRadius="xl">Cancel</Button>
+              <Button type="submit" colorScheme="purple" borderRadius="xl" px={8} leftIcon={<FiSend />}>
+                Assign Ticket
+              </Button>
+            </ModalFooter>
+          </form>
         </ModalContent>
       </Modal>
     </Box>

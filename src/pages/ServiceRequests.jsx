@@ -17,25 +17,12 @@ export default function ServiceRequests() {
     setLoading(true);
     try {
       const token = localStorage.getItem('manager-token');
-      console.log('🔑 Token:', token ? 'Present' : 'Missing');
-      console.log('🌐 API URL:', API_URL);
-
       const { data } = await axios.get(`${API_URL}/admin/service-requests`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      console.log('📦 Raw Response:', data);
-      console.log('📊 Response Type:', typeof data);
-      console.log('🔍 Is Array:', Array.isArray(data));
-
-      // Handle response properly
-      const requestsData = Array.isArray(data) ? data : [];
-      console.log('✅ Processed Requests:', requestsData.length);
-
-      setRequests(requestsData);
+      setRequests(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('❌ Fetch error:', error);
-      console.error('❌ Error response:', error.response?.data);
+      console.error('Fetch error:', error);
       setRequests([]);
     } finally {
       setLoading(false);

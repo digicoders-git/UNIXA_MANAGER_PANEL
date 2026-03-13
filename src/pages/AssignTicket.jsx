@@ -37,7 +37,9 @@ import {
   Icon,
   Tooltip,
   useColorModeValue,
+  SimpleGrid,
   Avatar,
+  Center,
 } from '@chakra-ui/react';
 import {
   FiSend,
@@ -77,6 +79,8 @@ export default function AssignTicket() {
   // State for Form
   const [editingTicket, setEditingTicket] = useState(null);
   const [viewingTicket, setViewingTicket] = useState(null);
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState('');
   const [formData, setFormData] = useState({
     ticketType: 'service_request',
     title: '',
@@ -106,7 +110,8 @@ export default function AssignTicket() {
   const fetchEmployees = async () => {
     try {
       const response = await http.get('/employees');
-      const filteredEmployees = response.data.filter(emp => emp.role !== 'Manager');
+      const data = Array.isArray(response.data) ? response.data : (response.data.employees || []);
+      const filteredEmployees = data.filter(emp => emp.role !== 'Manager');
       setEmployees(filteredEmployees);
     } catch (error) {
       console.error("Error fetching employees:", error);
@@ -116,7 +121,8 @@ export default function AssignTicket() {
   const fetchServiceRequests = async () => {
     try {
       const response = await http.get('/admin/service-requests');
-      const openRequests = response.data.filter(req => req.status === 'Open');
+      const data = Array.isArray(response.data) ? response.data : (response.data.serviceRequests || response.data.complaints || []);
+      const openRequests = data.filter(req => req.status === 'Open');
       setServiceRequests(openRequests);
     } catch (error) {
       console.error("Error fetching service requests:", error);
@@ -126,7 +132,8 @@ export default function AssignTicket() {
   const fetchOrders = async () => {
     try {
       const response = await http.get('/orders');
-      const confirmedOrders = response.data.filter(order => order.status === 'confirmed');
+      const data = Array.isArray(response.data) ? response.data : (response.data.orders || []);
+      const confirmedOrders = data.filter(order => order.status === 'confirmed');
       setOrders(confirmedOrders);
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -138,7 +145,10 @@ export default function AssignTicket() {
       setLoading(true);
       const response = await http.get('/assigned-tickets');
 
-      const formattedTickets = response.data.map(ticket => ({
+      const rawData = Array.isArray(response.data) ? response.data : (response.data.tickets || []);
+      console.log("Fetched Tickets:", rawData);
+
+      const formattedTickets = rawData.map(ticket => ({
         id: ticket._id,
         ticketType: ticket.ticketType || 'service_request',
         title: ticket.title || 'Service Request',
@@ -146,8 +156,12 @@ export default function AssignTicket() {
         priority: ticket.priority || 'Medium',
         date: new Date(ticket.dueDate || ticket.createdAt).toISOString().split('T')[0],
         status: ticket.status || 'Pending',
-        desc: ticket.description || 'No description provided.',
-        customerName: ticket.customerName
+        desc: ticket.description || ticket.notes || 'No description provided.',
+        address: ticket.address || 'N/A',
+        customerName: ticket.customerName,
+        completionPhotos: ticket.completionPhotos || [],
+        completionRemark: ticket.completionRemark || '',
+        completedAt: ticket.completedAt
       }));
 
       formattedTickets.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -174,6 +188,7 @@ export default function AssignTicket() {
         priority: formData.priority,
         dueDate: formData.date,
         description: formData.desc,
+        notes: formData.desc,
         status: 'Pending'
       };
 
@@ -186,6 +201,7 @@ export default function AssignTicket() {
           ticketData.customerName = selectedRequest.customerName;
           ticketData.customerPhone = selectedRequest.customerPhone;
           ticketData.customerEmail = selectedRequest.customerEmail;
+          ticketData.address = selectedRequest.address || 'N/A';
         }
       } else if (formData.ticketType === 'order' && formData.orderId) {
         const selectedOrder = orders.find(order => order._id === formData.orderId);
@@ -230,6 +246,7 @@ export default function AssignTicket() {
   };
 
   const handleView = (ticket) => {
+    console.log("Viewing Ticket Data:", ticket);
     setViewingTicket(ticket);
     onViewOpen();
   };
@@ -569,7 +586,7 @@ export default function AssignTicket() {
       </Modal>
 
       {/* View Ticket Modal */}
-      <Modal isOpen={isViewOpen} onClose={onViewClose} size="sm" isCentered>
+      <Modal isOpen={isViewOpen} onClose={onViewClose} size="4xl" isCentered scrollBehavior="inside">
         <ModalOverlay backdropFilter="blur(5px)" />
         <ModalContent borderRadius="2xl" border="1px solid" borderColor={borderColor}>
           <ModalHeader py={6}>
@@ -581,50 +598,146 @@ export default function AssignTicket() {
           <ModalCloseButton />
           <Divider />
           <ModalBody py={6}>
-            {viewingTicket && (
-              <VStack align="start" spacing={5}>
-                <Box>
-                  <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Title</Text>
-                  <Text fontWeight="bold" fontSize="lg">{viewingTicket.title}</Text>
-                </Box>
-                <HStack w="full" justify="space-between">
+             {viewingTicket && (
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8}>
+                <VStack align="start" spacing={5}>
                   <Box>
-                    <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Assigned To</Text>
-                    <HStack spacing={2} mt={1}>
-                      <Avatar size="xs" name={viewingTicket.employee} />
-                      <Text fontSize="sm">{viewingTicket.employee}</Text>
-                    </HStack>
+                    <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Title</Text>
+                    <Text fontWeight="bold" fontSize="lg">{viewingTicket.title}</Text>
                   </Box>
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Priority</Text>
-                    <Badge colorScheme={getPriorityColor(viewingTicket.priority)} mt={1}>{viewingTicket.priority}</Badge>
+                  <HStack w="full" justify="space-between">
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Assigned To</Text>
+                      <HStack spacing={2} mt={1}>
+                        <Avatar size="xs" name={viewingTicket.employee} />
+                        <Text fontSize="sm">{viewingTicket.employee}</Text>
+                      </HStack>
+                    </Box>
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Priority</Text>
+                      <Badge colorScheme={getPriorityColor(viewingTicket.priority)} mt={1}>{viewingTicket.priority}</Badge>
+                    </Box>
+                  </HStack>
+                  <HStack w="full" justify="space-between">
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Due Date</Text>
+                      <HStack spacing={1} mt={1}>
+                        <Icon as={FiClock} color="gray.400" />
+                        <Text fontSize="sm">{viewingTicket.date}</Text>
+                      </HStack>
+                    </Box>
+                    <Box>
+                      <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Status</Text>
+                      <Badge colorScheme={viewingTicket.status?.toLowerCase() === 'completed' ? 'green' : 'blue'} variant="solid" mt={1}>{viewingTicket.status}</Badge>
+                    </Box>
+                  </HStack>
+                  <Box w="full">
+                    <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Location / Address</Text>
+                    <Box p={3} bg="blue.50" rounded="xl" mt={1} border="1px solid" borderColor="blue.100">
+                      <HStack spacing={2}>
+                        <Icon as={FiClock} color="blue.500" />
+                        <Text fontSize="sm" fontWeight="bold">{viewingTicket.address || 'N/A'}</Text>
+                      </HStack>
+                    </Box>
                   </Box>
-                </HStack>
-                <HStack w="full" justify="space-between">
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Due Date</Text>
-                    <HStack spacing={1} mt={1}>
-                      <Icon as={FiClock} color="gray.400" />
-                      <Text fontSize="sm">{viewingTicket.date}</Text>
-                    </HStack>
+
+                  <Box w="full">
+                    <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Full Description</Text>
+                    <Box p={3} bg="gray.50" rounded="xl" mt={1} border="1px solid" borderColor="gray.100" maxH="150px" overflowY="auto">
+                      <Text fontSize="sm">{viewingTicket.desc || viewingTicket.description || 'No additional instructions provided for this task.'}</Text>
+                    </Box>
                   </Box>
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Status</Text>
-                    <Badge colorScheme="blue" variant="solid" mt={1}>{viewingTicket.status}</Badge>
-                  </Box>
-                </HStack>
-                <Box w="full">
-                  <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Full Description</Text>
-                  <Box p={3} bg="gray.50" rounded="xl" mt={1} border="1px solid" borderColor="gray.100">
-                    <Text fontSize="sm">{viewingTicket.desc || 'No additional instructions provided for this task.'}</Text>
-                  </Box>
-                </Box>
-              </VStack>
+                </VStack>
+
+                <VStack align="start" spacing={5}>
+                  {viewingTicket.status?.toLowerCase() === 'completed' ? (
+                    <>
+                      <Box w="full">
+                        <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Completion Remark</Text>
+                        <Box p={3} bg="green.50" rounded="xl" mt={1} border="1px solid" borderColor="green.100">
+                          <Text fontSize="sm" fontStyle="italic">{viewingTicket.completionRemark || 'No completion remarks provided.'}</Text>
+                        </Box>
+                      </Box>
+
+                      {viewingTicket.completionPhotos && viewingTicket.completionPhotos.length > 0 && (
+                        <Box w="full">
+                          <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase" mb={2}>Completion Photos ({viewingTicket.completionPhotos.length})</Text>
+                          <SimpleGrid columns={2} spacing={2}>
+                            {viewingTicket.completionPhotos.map((photo, idx) => (
+                              <Box key={idx} borderRadius="lg" overflow="hidden" border="1px solid" borderColor="gray.200" h="120px" position="relative" role="group">
+                                <img 
+                                  src={photo} 
+                                  alt={`Completion ${idx}`} 
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer', transition: 'transform 0.3s' }}
+                                  onClick={() => {
+                                    setPreviewImage(photo);
+                                    setIsImagePreviewOpen(true);
+                                  }}
+                                />
+                                <Center position="absolute" inset={0} bg="blackAlpha.400" opacity={0} _groupHover={{ opacity: 1 }} transition="opacity 0.2s" pointerEvents="none">
+                                  <Icon as={FiEye} color="white" />
+                                </Center>
+                              </Box>
+                            ))}
+                          </SimpleGrid>
+                        </Box>
+                      )}
+
+                      {viewingTicket.completedAt && (
+                        <Box p={3} bg="blue.50" rounded="xl" w="full" border="1px solid" borderColor="blue.100">
+                          <HStack fontSize="xs" color="gray.600">
+                            <Icon as={FiClock} color="green.500" />
+                            <VStack align="start" spacing={0}>
+                              <Text fontWeight="bold" color="green.700">Completed On</Text>
+                              <Text>{new Date(viewingTicket.completedAt).toLocaleString()}</Text>
+                            </VStack>
+                          </HStack>
+                        </Box>
+                      )}
+                    </>
+                  ) : (
+                    <Center h="full" w="full" p={8} bg="gray.50" rounded="3xl" border="2px dashed" borderColor="gray.200">
+                      <VStack spacing={3}>
+                        <Icon as={FiClock} fontSize="3xl" color="gray.300" />
+                        <Text fontWeight="bold" color="gray.400">Not Completed Yet</Text>
+                      </VStack>
+                    </Center>
+                  )}
+                </VStack>
+              </SimpleGrid>
             )}
           </ModalBody>
           <ModalFooter>
             <Button colorScheme="blue" w="full" onClick={onViewClose} borderRadius="xl">Close Preview</Button>
           </ModalFooter>
+        </ModalContent>
+      </Modal>
+       {/* Full Image Preview Modal */}
+      <Modal isOpen={isImagePreviewOpen} onClose={() => setIsImagePreviewOpen(false)} size="full">
+        <ModalOverlay bg="blackAlpha.900" backdropFilter="blur(10px)" />
+        <ModalContent bg="transparent" boxShadow="none">
+          <ModalHeader border="none">
+            <ModalCloseButton color="white" size="lg" />
+          </ModalHeader>
+          <ModalBody display="flex" alignItems="center" justifyContent="center" p={0}>
+            <Box 
+              maxW="90vw" 
+              maxH="85vh" 
+              onClick={() => setIsImagePreviewOpen(false)}
+              cursor="zoom-out"
+            >
+              <img 
+                src={previewImage} 
+                alt="Full Completion View" 
+                style={{ 
+                  borderRadius: '12px', 
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                  maxHeight: '85vh',
+                  objectFit: 'contain'
+                }} 
+              />
+            </Box>
+          </ModalBody>
         </ModalContent>
       </Modal>
     </Box>

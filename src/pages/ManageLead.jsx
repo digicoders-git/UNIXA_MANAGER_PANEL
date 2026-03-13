@@ -37,6 +37,8 @@ import {
   Tooltip,
   useColorModeValue,
   Avatar,
+  Image,
+  SimpleGrid,
 } from '@chakra-ui/react';
 import {
   FiPlus,
@@ -66,12 +68,16 @@ export default function ManageLead() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
   const itemsPerPage = 5;
   const toast = useToast();
 
   const { isOpen: isFormOpen, onOpen: onFormOpen, onClose: onFormClose } = useDisclosure();
   const { isOpen: isViewOpen, onOpen: onViewOpen, onClose: onViewClose } = useDisclosure();
   const { isOpen: isAssignOpen, onOpen: onAssignOpen, onClose: onAssignClose } = useDisclosure();
+  const [isShowModalOpen, setIsShowModalOpen] = useState(false);
+  const [selectedLeadDetails, setSelectedLeadDetails] = useState(null);
 
   const [editingLead, setEditingLead] = useState(null);
   const [viewingLead, setViewingLead] = useState(null);
@@ -192,7 +198,9 @@ export default function ManageLead() {
   const fetchAssignedTickets = async () => {
     try {
       const response = await http.get('/assigned-tickets');
-      setAssignedTickets(Array.isArray(response.data) ? response.data : []);
+      const leadTickets = response.data.filter(t => t.ticketType === 'lead');
+      console.log('Manager Panel - Lead Tickets:', leadTickets);
+      setAssignedTickets(leadTickets);
       setTicketsLoaded(true);
     } catch (error) {
       console.error("Error fetching assigned tickets:", error);
@@ -203,7 +211,10 @@ export default function ManageLead() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
     try {
+      setIsSubmitting(true);
       const payload = {
         name: formData.name,
         email: formData.email,
@@ -221,17 +232,22 @@ export default function ManageLead() {
         await http.post('/leads', payload);
         toast({ title: 'Lead Added Successfully', status: 'success', position: 'top-right' });
       }
-      fetchLeads(); // Refresh list
+      fetchLeads();
       handleCloseForm();
     } catch (error) {
       console.error("Operation Failed:", error);
       toast({ title: 'Operation Failed', description: error.response?.data?.message || "Server Error", status: 'error', position: 'top-right' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleAssignSubmit = async (e) => {
     e.preventDefault();
+    if (isAssigning) return;
+    
     try {
+      setIsAssigning(true);
       if (!selectedLeadForAssign) return;
 
       const userData = JSON.parse(localStorage.getItem('manager-data') || '{}');
@@ -258,7 +274,6 @@ export default function ManageLead() {
       onAssignClose();
       setAssignData({ employee: '', priority: 'Medium', dueDate: '', description: '' });
       setSelectedLeadForAssign(null);
-      // Refresh tickets immediately after assignment for real-time update
       setTimeout(() => {
         fetchAssignedTickets();
       }, 500);
@@ -266,12 +281,47 @@ export default function ManageLead() {
       console.error('Error assigning lead:', error);
       const detail = error.response?.data?.error || error.response?.data?.message || error.message;
       toast({ title: "Assignment Failed", description: detail, status: "error", position: "top-right" });
+    } finally {
+      setIsAssigning(false);
     }
   };
 
   const openAssignModal = (lead) => {
     setSelectedLeadForAssign(lead);
     onAssignOpen();
+  };
+
+  const showLeadDetails = async (lead) => {
+    try {
+      console.log('Showing details for lead:', lead.id);
+      console.log('Available tickets:', assignedTickets);
+      
+      const ticket = assignedTickets.find(t => {
+        if (t.ticketType !== 'lead') return false;
+        const ticketLeadId = typeof t.leadId === 'object' ? t.leadId?._id : t.leadId;
+        const match = ticketLeadId === lead.id ||
+          ticketLeadId?.toString() === lead.id?.toString() ||
+          String(ticketLeadId) === String(lead.id);
+        console.log(`Comparing ticket leadId: ${ticketLeadId} with lead id: ${lead.id}, match: ${match}`);
+        return match;
+      });
+      
+      console.log('Found ticket:', ticket);
+      if (ticket) {
+        console.log('Ticket completion data:', {
+          completionPhotos: ticket.completionPhotos,
+          visitPhotos: ticket.visitPhotos,
+          completionRemark: ticket.completionRemark,
+          employeeFeedback: ticket.employeeFeedback,
+          status: ticket.status
+        });
+      }
+      setSelectedLeadDetails({ lead, ticket });
+      setIsShowModalOpen(true);
+    } catch (error) {
+      console.error('Error showing lead details:', error);
+      toast({ title: 'Error', description: 'Failed to load lead details', status: 'error' });
+    }
   };
 
   const handleDelete = async (id) => {
@@ -419,14 +469,21 @@ export default function ManageLead() {
                 </Td>
                 <Td py={5} textAlign="right">
                   <HStack justify="flex-end" spacing={1}>
-                    <Tooltip label="View Details">
-                      <IconButton icon={<FiEye />} size="sm" variant="ghost" colorScheme="teal" onClick={() => handleView(lead)} />
+                    <Tooltip label="Show Details">
+                      <IconButton icon={<FiEye />} size="sm" variant="ghost" colorScheme="green" onClick={() => showLeadDetails(lead)} />
                     </Tooltip>
                     <Tooltip label="Edit Lead">
                       <IconButton icon={<FiEdit2 />} size="sm" variant="ghost" colorScheme="blue" onClick={() => handleEdit(lead)} />
                     </Tooltip>
-                    <Tooltip label="Assign Lead">
-                      <IconButton icon={<FiSend />} size="sm" variant="ghost" colorScheme="purple" onClick={() => openAssignModal(lead)} />
+                    <Tooltip label={getLeadTicketStatus(lead.id) ? "Already assigned" : "Assign Lead"}>
+                      <IconButton 
+                        icon={<FiSend />} 
+                        size="sm" 
+                        variant="ghost" 
+                        colorScheme="purple" 
+                        onClick={() => openAssignModal(lead)}
+                        isDisabled={!!getLeadTicketStatus(lead.id)}
+                      />
                     </Tooltip>
                     <Tooltip label="Delete Lead">
                       <IconButton icon={<FiTrash2 />} size="sm" variant="ghost" colorScheme="red" onClick={() => handleDelete(lead.id)} />
@@ -578,8 +635,8 @@ export default function ManageLead() {
               </Stack>
             </ModalBody>
             <ModalFooter py={6} bg={useColorModeValue('gray.50', 'gray.850')} borderBottomRadius="2xl">
-              <Button variant="ghost" mr={3} onClick={handleCloseForm} borderRadius="xl">Cancel</Button>
-              <Button type="submit" colorScheme="blue" borderRadius="xl" px={8} leftIcon={<FiSend />}>
+              <Button variant="ghost" mr={3} onClick={handleCloseForm} borderRadius="xl" isDisabled={isSubmitting}>Cancel</Button>
+              <Button type="submit" colorScheme="blue" borderRadius="xl" px={8} leftIcon={<FiSend />} isLoading={isSubmitting} isDisabled={isSubmitting}>
                 {editingLead ? 'Update Lead' : 'Save Lead'}
               </Button>
             </ModalFooter>
@@ -678,7 +735,7 @@ export default function ManageLead() {
                           setSelectedLeadForAssign(lead);
                         }}
                       >
-                        {leads.map(lead => (
+                        {leads.filter(lead => !getLeadTicketStatus(lead.id)).map(lead => (
                           <option key={lead.id} value={lead.id}>
                             {lead.name} - {lead.phone} ({lead.status})
                           </option>
@@ -751,14 +808,211 @@ export default function ManageLead() {
               </Stack>
             </ModalBody>
             <ModalFooter py={6} bg={useColorModeValue('gray.50', 'gray.850')} borderBottomRadius="2xl">
-              <Button variant="ghost" mr={3} onClick={onAssignClose} borderRadius="xl">Cancel</Button>
-              <Button type="submit" colorScheme="purple" borderRadius="xl" px={8} leftIcon={<FiSend />}>
+              <Button variant="ghost" mr={3} onClick={onAssignClose} borderRadius="xl" isDisabled={isAssigning}>Cancel</Button>
+              <Button type="submit" colorScheme="purple" borderRadius="xl" px={8} leftIcon={<FiSend />} isLoading={isAssigning} isDisabled={isAssigning}>
                 Assign Ticket
               </Button>
             </ModalFooter>
           </form>
         </ModalContent>
       </Modal>
+
+      {/* Show Lead Details Modal */}
+      {isShowModalOpen && selectedLeadDetails && (
+        <Modal isOpen={isShowModalOpen} onClose={() => setIsShowModalOpen(false)} size="6xl" isCentered>
+          <ModalOverlay backdropFilter="blur(5px)" />
+          <ModalContent borderRadius="2xl" border="1px solid" borderColor={borderColor}>
+            <ModalHeader py={6}>
+              <HStack spacing={3}>
+                <Icon as={FiEye} color="green.500" />
+                <Text>Lead Details - {selectedLeadDetails.lead.name}</Text>
+              </HStack>
+            </ModalHeader>
+            <ModalCloseButton />
+            <Divider />
+            <ModalBody py={6}>
+              <HStack spacing={8} align="start">
+                {/* Lead Information */}
+                <VStack flex={1} align="stretch" spacing={4}>
+                  <Heading size="md" color="blue.500">Lead Information</Heading>
+                  
+                  <Stack spacing={3}>
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" opacity={0.7}>Name:</Text>
+                      <Text fontWeight="bold">{selectedLeadDetails.lead.name}</Text>
+                    </HStack>
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" opacity={0.7}>Phone:</Text>
+                      <Text fontWeight="bold">{selectedLeadDetails.lead.phone}</Text>
+                    </HStack>
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" opacity={0.7}>Email:</Text>
+                      <Text fontWeight="bold">{selectedLeadDetails.lead.email || 'N/A'}</Text>
+                    </HStack>
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" opacity={0.7}>Address:</Text>
+                      <Text fontWeight="bold">{selectedLeadDetails.lead.address || 'N/A'}</Text>
+                    </HStack>
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" opacity={0.7}>Product Interest:</Text>
+                      <Text fontWeight="bold">{selectedLeadDetails.lead.productInterest || 'General'}</Text>
+                    </HStack>
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" opacity={0.7}>Lead Status:</Text>
+                      <Badge colorScheme={getStatusColor(selectedLeadDetails.lead.status)} variant="subtle" px={3} py={1} rounded="full">
+                        {selectedLeadDetails.lead.status?.toUpperCase()}
+                      </Badge>
+                    </HStack>
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" opacity={0.7}>Created:</Text>
+                      <Text fontWeight="bold">{selectedLeadDetails.lead.date}</Text>
+                    </HStack>
+                  </Stack>
+                </VStack>
+
+                {/* Ticket Information */}
+                <VStack flex={1} align="stretch" spacing={4}>
+                  <Heading size="md" color="purple.500">Ticket Information</Heading>
+                  
+                  {selectedLeadDetails.ticket ? (
+                    <Stack spacing={3}>
+                      <HStack justify="space-between">
+                        <Text fontWeight="medium" opacity={0.7}>Assigned To:</Text>
+                        <Text fontWeight="bold">{selectedLeadDetails.ticket.assignedTo}</Text>
+                      </HStack>
+                      <HStack justify="space-between">
+                        <Text fontWeight="medium" opacity={0.7}>Assigned By:</Text>
+                        <Text fontWeight="bold">{selectedLeadDetails.ticket.assignedBy}</Text>
+                      </HStack>
+                      <HStack justify="space-between">
+                        <Text fontWeight="medium" opacity={0.7}>Priority:</Text>
+                        <Text fontWeight="bold">{selectedLeadDetails.ticket.priority}</Text>
+                      </HStack>
+                      <HStack justify="space-between">
+                        <Text fontWeight="medium" opacity={0.7}>Status:</Text>
+                        <Badge colorScheme={getTicketStatusColor(selectedLeadDetails.ticket.status)} variant="subtle" px={3} py={1} rounded="full">
+                          {selectedLeadDetails.ticket.status}
+                        </Badge>
+                      </HStack>
+                      <HStack justify="space-between">
+                        <Text fontWeight="medium" opacity={0.7}>Due Date:</Text>
+                        <Text fontWeight="bold">{selectedLeadDetails.ticket.dueDate ? new Date(selectedLeadDetails.ticket.dueDate).toLocaleDateString('en-IN') : 'N/A'}</Text>
+                      </HStack>
+                      
+                      {selectedLeadDetails.ticket.status === 'Completed' && (
+                        <Box mt={6}>
+                          <Heading size="sm" mb={4} color="green.500">Completion Details</Heading>
+                          
+                          {selectedLeadDetails.ticket.completedAt && (
+                            <HStack justify="space-between" mb={2}>
+                              <Text fontWeight="medium" opacity={0.7}>Completed At:</Text>
+                              <Text fontWeight="bold">{new Date(selectedLeadDetails.ticket.completedAt).toLocaleString('en-IN')}</Text>
+                            </HStack>
+                          )}
+                          
+                          {selectedLeadDetails.ticket.completionRemark && (
+                            <Box mb={4}>
+                              <Text fontWeight="medium" opacity={0.7} mb={2}>Completion Remark:</Text>
+                              <Box p={3} bg="gray.50" borderRadius="lg">
+                                <Text fontSize="sm">{selectedLeadDetails.ticket.completionRemark}</Text>
+                              </Box>
+                            </Box>
+                          )}
+                          
+                          {selectedLeadDetails.ticket.employeeFeedback && (
+                            <Box mb={4}>
+                              <Text fontWeight="medium" opacity={0.7} mb={2}>Employee Feedback:</Text>
+                              <Box p={3} bg="blue.50" borderRadius="lg">
+                                <Text fontSize="sm">{selectedLeadDetails.ticket.employeeFeedback}</Text>
+                              </Box>
+                            </Box>
+                          )}
+                          
+                          {(() => {
+                            const photos = selectedLeadDetails.ticket.completionPhotos || 
+                                          selectedLeadDetails.ticket.visitPhotos || 
+                                          selectedLeadDetails.ticket.installationPhotos || 
+                                          [];
+                            console.log('Manager Panel - All photo fields:', {
+                              completionPhotos: selectedLeadDetails.ticket.completionPhotos,
+                              visitPhotos: selectedLeadDetails.ticket.visitPhotos,
+                              installationPhotos: selectedLeadDetails.ticket.installationPhotos
+                            });
+                            
+                            if (photos.length > 0) {
+                              return (
+                                <Box mb={4}>
+                                  <Text fontWeight="medium" opacity={0.7} mb={2}>Completion Photos ({photos.length}):</Text>
+                                  <SimpleGrid columns={2} spacing={2}>
+                                    {photos.map((photo, index) => {
+                                      console.log(`Manager Panel - Rendering photo ${index}:`, photo);
+                                      return (
+                                        <Image
+                                          key={index}
+                                          src={photo}
+                                          alt={`Completion ${index + 1}`}
+                                          w="full"
+                                          h="32"
+                                          objectFit="cover"
+                                          borderRadius="lg"
+                                          border="1px solid"
+                                          borderColor={borderColor}
+                                          cursor="pointer"
+                                          onClick={() => window.open(photo, '_blank')}
+                                          onError={(e) => {
+                                            console.log('Manager Panel - Image load error:', photo);
+                                            e.target.style.display = 'none';
+                                          }}
+                                          onLoad={() => {
+                                            console.log('Manager Panel - Image loaded successfully:', photo);
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                  </SimpleGrid>
+                                </Box>
+                              );
+                            } else {
+                              return (
+                                <Box mb={4}>
+                                  <Text fontWeight="medium" opacity={0.7} mb={2} color="red.500">No completion photos found</Text>
+                                  <Text fontSize="sm" color="gray.500">
+                                    completionPhotos: {JSON.stringify(selectedLeadDetails.ticket.completionPhotos)}<br/>
+                                    visitPhotos: {JSON.stringify(selectedLeadDetails.ticket.visitPhotos)}<br/>
+                                    installationPhotos: {JSON.stringify(selectedLeadDetails.ticket.installationPhotos)}
+                                  </Text>
+                                </Box>
+                              );
+                            }
+                          })()}
+                        </Box>
+                      )}
+                      
+                      {selectedLeadDetails.ticket.description && (
+                        <Box mt={4}>
+                          <Text fontWeight="medium" opacity={0.7} mb={2}>Task Description:</Text>
+                          <Box p={3} bg="gray.50" borderRadius="lg">
+                            <Text fontSize="sm">{selectedLeadDetails.ticket.description}</Text>
+                          </Box>
+                        </Box>
+                      )}
+                    </Stack>
+                  ) : (
+                    <Box textAlign="center" py={8}>
+                      <Text color="gray.500">No ticket assigned for this lead</Text>
+                    </Box>
+                  )}
+                </VStack>
+              </HStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button onClick={() => setIsShowModalOpen(false)} borderRadius="xl">
+                Close
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      )}
     </Box>
   );
 }

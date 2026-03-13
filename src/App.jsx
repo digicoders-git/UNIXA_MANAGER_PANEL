@@ -19,24 +19,25 @@ import ChangePassword from './pages/ChangePassword';
 import Notifications from './pages/Notifications';
 import ServiceRequests from './pages/ServiceRequests';
 import AMCManagement from './pages/AMCManagement';
+import SMSMessages from './pages/SMSMessages';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
   const { isLoggedIn, loading } = useAuth();
-  
+
   if (loading) return <div>Loading...</div>; // You can replace with a proper spinner
   if (!isLoggedIn) return <Navigate to="/login" replace />;
-  
+
   return children;
 };
 
 // Public Route Wrapper (redirect to dashboard if already logged in)
 const PublicRoute = ({ children }) => {
   const { isLoggedIn, loading } = useAuth();
-  
+
   if (loading) return <div>Loading...</div>;
   if (isLoggedIn) return <Navigate to="/dashboard" replace />;
-  
+
   return children;
 };
 
@@ -50,147 +51,157 @@ function App() {
               <Login />
             </PublicRoute>
           } />
-          
+
           {/* Protected Routes wrapped in DashboardLayout */}
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <Dashboard />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/assign-ticket" 
+          <Route
+            path="/assign-ticket"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <AssignTicket />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/manage-lead" 
+          <Route
+            path="/manage-lead"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                    <ManageLead />
+                  <ManageLead />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/monitor-employee" 
+          <Route
+            path="/monitor-employee"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <MonitorEmployee />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/manage-employee" 
+          <Route
+            path="/manage-employee"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <ManageEmployee />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/manage-orders" 
+          <Route
+            path="/manage-orders"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <ManageOrder />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/generate-report" 
+          <Route
+            path="/generate-report"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <GenerateReport />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/my-assets" 
+          <Route
+            path="/my-assets"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <MyAssets />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/assets-history" 
+          <Route
+            path="/assets-history"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <AssetsHistory />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/profile" 
+          <Route
+            path="/profile"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <Profile />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/change-password" 
+          <Route
+            path="/change-password"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <ChangePassword />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/notifications" 
+          <Route
+            path="/notifications"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <Notifications />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/service-requests" 
+          <Route
+            path="/service-requests"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <ServiceRequests />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/amc-management" 
+          <Route
+            path="/amc-management"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <AMCManagement />
                 </DashboardLayout>
               </ProtectedRoute>
-            } 
+            }
+          />
+          <Route
+            path="/sms-center"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <SMSMessages />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
           />
 
           {/* Redirects */}

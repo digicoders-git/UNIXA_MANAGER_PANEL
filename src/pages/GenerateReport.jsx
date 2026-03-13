@@ -122,7 +122,7 @@ export default function GenerateReport() {
 
         // SALES REPORT
         if (selectedType === 'sales') {
-            const { data } = await http.get('/api/orders');
+            const { data } = await http.get('/orders');
             rawData = data.orders || [];
             const filtered = filterDataByTime(rawData, 'createdAt');
             
@@ -141,7 +141,7 @@ export default function GenerateReport() {
         } 
         // TICKET ANALYTICS
         else if (selectedType === 'ticket') {
-             const { data } = await http.get('/api/assigned-tickets');
+             const { data } = await http.get('/assigned-tickets');
              const filtered = filterDataByTime(data, 'createdAt');
              
              formattedData = filtered.map((t, idx) => ({
@@ -159,7 +159,7 @@ export default function GenerateReport() {
         }
         // ACTIVITY REPORT (Employees)
         else if (selectedType === 'activity') {
-            const { data } = await http.get('/api/employees');
+            const { data } = await http.get('/employees');
             formattedData = data.map(emp => ({
                 ID: emp._id.slice(-8),
                 Name: emp.name,

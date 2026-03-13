@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Flex,
@@ -20,6 +20,7 @@ import {
   Tooltip,
   Button,
   Divider,
+  Badge,
 } from '@chakra-ui/react';
 import {
   FiHome,
@@ -37,10 +38,12 @@ import {
   FiShoppingCart,
   FiBox,
   FiTool,
-  FiShield
+  FiShield,
+  FiMessageSquare
 } from 'react-icons/fi';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import http from '../apis/http';
 
 const LinkItems = [
   { name: 'Dashboard', icon: FiHome, path: '/dashboard' },
@@ -55,6 +58,7 @@ const LinkItems = [
   { name: 'My Assets', icon: FiBox, path: '/my-assets' },
   { name: 'Profile', icon: FiUser, path: '/profile' },
   { name: 'Change Password', icon: FiLock, path: '/change-password' },
+  { name: 'SMS Center', icon: FiMessageSquare, path: '/sms-center' },
 ];
 
 export default function DashboardLayout({ children }) {
@@ -104,12 +108,17 @@ const SidebarContent = ({ onClose, ...rest }) => {
       {...rest}>
       <Flex h="24" alignItems="center" mx="8" justifyContent="space-between">
         <HStack spacing={3}>
-          <Box bg="blue.500" p={2} borderRadius="lg" shadow="lg">
-            <Icon as={FiActivity} color="white" w={6} h={6} />
+          <Box>
+            <img src="/sks-logo.png" alt="UNIXA Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           </Box>
-          <Text fontSize="xl" fontWeight="800" letterSpacing="tight" color={useColorModeValue('gray.800', 'white')}>
-            MANAGER<Text as="span" color="blue.500">PRO</Text>
-          </Text>
+          <VStack spacing={0} align="start">
+            <Text fontSize="lg" fontWeight="800" letterSpacing="tight" color={useColorModeValue('gray.800', 'white')}>
+              UNIXA
+            </Text>
+            <Text fontSize="xs" fontWeight="600" color="blue.500" textTransform="uppercase" letterSpacing="wide">
+              Manager Panel
+            </Text>
+          </VStack>
         </HStack>
         <IconButton
           display={{ base: 'flex', md: 'none' }}
@@ -122,9 +131,9 @@ const SidebarContent = ({ onClose, ...rest }) => {
       <Flex direction="column" h="calc(100% - 96px)" justify="space-between" pb={8}>
         <VStack spacing={1} align="stretch" px={4} overflowY="auto">
           {LinkItems.map((link) => (
-            <NavItem 
-              key={link.name} 
-              icon={link.icon} 
+            <NavItem
+              key={link.name}
+              icon={link.icon}
               path={link.path}
               active={location.pathname === link.path}
             >
@@ -132,7 +141,7 @@ const SidebarContent = ({ onClose, ...rest }) => {
             </NavItem>
           ))}
         </VStack>
-        
+
         <Box px={4}>
           <Divider mb={4} borderColor={borderColor} />
           <Flex
@@ -202,7 +211,21 @@ const NavItem = ({ icon, children, path, active, ...rest }) => {
 
 const MobileNav = ({ onOpen, ...rest }) => {
   const { user, logout } = useAuth();
-  
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const { data } = await http.get('/manager-dashboard/notifications');
+        const unread = data.notifications?.filter(n => n.status === 'unread').length || 0;
+        setUnreadCount(unread);
+      } catch (err) {
+        // Silently fail for header
+      }
+    };
+    fetchUnread();
+  }, []);
+
   return (
     <Flex
       ml={{ base: 0, md: 64 }}
@@ -226,15 +249,15 @@ const MobileNav = ({ onOpen, ...rest }) => {
       />
 
       <HStack spacing={3} display={{ base: 'flex', md: 'none' }}>
-        <Box bg="blue.500" p={1} borderRadius="md">
-          <Icon as={FiActivity} color="white" />
+        <Box>
+          <img src="/sks-logo.png" alt="UNIXA Logo" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
         </Box>
-        <Text fontSize="lg" fontWeight="extrabold">MPRO</Text>
+        <Text fontSize="lg" fontWeight="extrabold">UNIXA</Text>
       </HStack>
 
       <HStack spacing={{ base: '2', md: '6' }}>
         <Tooltip label="Notifications">
-          <Link to="/notifications">
+          <Link to="/notifications" style={{ position: 'relative' }}>
             <IconButton
               size="lg"
               variant="ghost"
@@ -242,6 +265,22 @@ const MobileNav = ({ onOpen, ...rest }) => {
               icon={<FiBell />}
               borderRadius="full"
             />
+            {unreadCount > 0 && (
+              <Badge
+                position="absolute"
+                top="2"
+                right="2"
+                colorScheme="red"
+                variant="solid"
+                borderRadius="full"
+                fontSize="10px"
+                minW="18px"
+                textAlign="center"
+                border="2px solid white"
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Badge>
+            )}
           </Link>
         </Tooltip>
         <Flex alignItems={'center'}>
@@ -254,7 +293,7 @@ const MobileNav = ({ onOpen, ...rest }) => {
                 <Avatar
                   size={'sm'}
                   name={user?.name || "Manager"}
-                  src={'https://images.unsplash.com/photo-1619946769363-107a671448b7?auto=format&fit=crop&w=116&q=80'}
+                  src={user?.profilePicture || 'https://images.unsplash.com/photo-1619946769363-107a671448b7?auto=format&fit=crop&w=116&q=80'}
                   border="2px solid"
                   borderColor="blue.500"
                 />

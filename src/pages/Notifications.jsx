@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import http from '../apis/http';
 import {
   Box,
   Heading,
@@ -68,7 +69,23 @@ const initialNotifications = [
 ];
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const { data } = await http.get('/manager-dashboard/notifications');
+      setNotifications(data.notifications || []);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.100', 'gray.700');
@@ -167,7 +184,7 @@ export default function Notifications() {
                       </Badge>
                     )}
                   </HStack>
-                  <Text fontSize="sm" color="gray.600">{notif.desc}</Text>
+                  <Text fontSize="sm" color="gray.600">{notif.desc || notif.description}</Text>
                   <Text fontSize="xs" color="gray.400" mt={1}>{notif.time}</Text>
                 </VStack>
               </HStack>

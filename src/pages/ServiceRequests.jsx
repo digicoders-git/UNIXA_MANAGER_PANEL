@@ -16,7 +16,7 @@ export default function ServiceRequests() {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('manager-token');
+      const token = localStorage.getItem('managerToken');
       const { data } = await axios.get(`${API_URL}/admin/service-requests`, {
         headers: { Authorization: `Bearer ${token}` }
       });

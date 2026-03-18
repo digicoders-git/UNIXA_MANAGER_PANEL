@@ -53,7 +53,7 @@ import {
   FiInbox
 } from 'react-icons/fi';
 
-import http from '../apis/http';
+import http, { getMediaUrl } from '../apis/http';
 
 const initialEmployees = [];
 
@@ -101,7 +101,7 @@ export default function ManageEmployee() {
           role: emp.role,
           department: emp.designation || 'N/A',
           joined: emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString() : (emp.createdAt ? new Date(emp.createdAt).toLocaleDateString() : 'N/A'),
-          avatar: '',
+          avatar: getMediaUrl(emp.profilePicture),
           status: emp.status ? 'Active' : 'Inactive'
         }));
       setEmployees(formattedEmployees);

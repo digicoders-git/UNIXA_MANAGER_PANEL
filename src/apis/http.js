@@ -32,4 +32,13 @@ http.interceptors.response.use(
   }
 );
 
+export const IMAGE_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace('/api', '');
+
+export const getMediaUrl = (path) => {
+  if (!path) return "";
+  if (path.startsWith('http')) return path;
+  const cleanPath = (path || "").replace(/\\/g, '/');
+  return `${IMAGE_BASE_URL}/${cleanPath}`;
+};
+
 export default http;

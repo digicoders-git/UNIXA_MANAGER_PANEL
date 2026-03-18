@@ -20,6 +20,7 @@ import Notifications from './pages/Notifications';
 import ServiceRequests from './pages/ServiceRequests';
 import AMCManagement from './pages/AMCManagement';
 import SMSMessages from './pages/SMSMessages';
+import UserHistory from './pages/UserHistory';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -189,6 +190,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <AMCManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user-history/:userId"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <UserHistory />
                 </DashboardLayout>
               </ProtectedRoute>
             }

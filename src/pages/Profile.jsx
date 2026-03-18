@@ -32,6 +32,7 @@ import {
 import { FiUser, FiMail, FiPhone, FiCamera, FiCheck, FiShield, FiBriefcase, FiEdit2, FiUpload } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile, uploadProfilePicture } from '../apis/employee';
+import { getMediaUrl } from '../apis/http';
 
 export default function Profile() {
   const { user, login } = useAuth();
@@ -82,7 +83,7 @@ export default function Profile() {
         });
         return;
       }
-      
+
       if (!file.type.startsWith('image/')) {
         toast({
           title: 'Invalid file type',
@@ -93,7 +94,7 @@ export default function Profile() {
         });
         return;
       }
-      
+
       setSelectedFile(file);
       const reader = new FileReader();
       reader.onload = (e) => setPreviewUrl(e.target.result);
@@ -104,13 +105,13 @@ export default function Profile() {
 
   const handleUploadProfilePicture = async () => {
     if (!selectedFile) return;
-    
+
     setUploadLoading(true);
     try {
       const response = await uploadProfilePicture(user.id, selectedFile);
       const updatedUser = { ...user, profilePicture: response.profilePicture };
       login(updatedUser, localStorage.getItem('managerToken'));
-      
+
       toast({
         title: 'Profile Picture Updated!',
         description: 'Your profile picture has been updated successfully.',
@@ -118,7 +119,7 @@ export default function Profile() {
         duration: 3000,
         isClosable: true,
       });
-      
+
       onClose();
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -192,20 +193,20 @@ export default function Profile() {
         {/* Left Column: Profile Card */}
         <Box gridColumn={{ lg: "span 1" }}>
           <VStack spacing={6} align="stretch">
-            <Box 
-              bg={cardBg} 
-              p={10} 
-              shadow="sm" 
-              rounded="3xl" 
-              border="1px solid" 
-              borderColor={borderColor} 
+            <Box
+              bg={cardBg}
+              p={10}
+              shadow="sm"
+              rounded="3xl"
+              border="1px solid"
+              borderColor={borderColor}
               textAlign="center"
             >
               <Box position="relative" display="inline-block" mb={6}>
-                <Avatar 
-                  size="2xl" 
-                  name={user?.name || 'Manager'} 
-                  src={user?.profilePicture}
+                <Avatar
+                  size="2xl"
+                  name={user?.name || 'Manager'}
+                  src={getMediaUrl(user?.profilePicture)}
                   border="4px solid white"
                   shadow="lg"
                 />
@@ -216,33 +217,35 @@ export default function Profile() {
                   accept="image/*"
                   style={{ display: 'none' }}
                 />
-                <IconButton
-                  aria-label="Change photo"
-                  icon={<FiCamera />}
-                  size="md"
-                  colorScheme="blue"
-                  rounded="full"
-                  position="absolute"
-                  bottom="1"
-                  right="1"
-                  shadow="xl"
-                  border="4px solid white"
-                  _hover={{ transform: 'scale(1.1)' }}
-                  transition="0.2s"
-                  onClick={handleCameraClick}
-                />
+                {isEditing && (
+                  <IconButton
+                    aria-label="Change photo"
+                    icon={<FiCamera />}
+                    size="md"
+                    colorScheme="blue"
+                    rounded="full"
+                    position="absolute"
+                    bottom="1"
+                    right="1"
+                    shadow="xl"
+                    border="4px solid white"
+                    _hover={{ transform: 'scale(1.1)' }}
+                    transition="0.2s"
+                    onClick={handleCameraClick}
+                  />
+                )}
               </Box>
-              
+
               <VStack spacing={2}>
                 <Heading size="lg" fontWeight="800" color={useColorModeValue('gray.800', 'white')}>
                   {user?.name || 'Manager'}
                 </Heading>
-                <Badge 
-                  colorScheme="blue" 
-                  variant="solid" 
-                  px={4} 
-                  py={1} 
-                  rounded="full" 
+                <Badge
+                  colorScheme="blue"
+                  variant="solid"
+                  px={4}
+                  py={1}
+                  rounded="full"
                   fontSize="XS"
                   letterSpacing="wider"
                 >
@@ -279,13 +282,13 @@ export default function Profile() {
         </Box>
 
         {/* Right Column: Profile Form */}
-        <Box 
+        <Box
           gridColumn={{ lg: "span 2" }}
-          bg={cardBg} 
-          p={{ base: 6, md: 10 }} 
-          shadow="sm" 
-          rounded="3xl" 
-          border="1px solid" 
+          bg={cardBg}
+          p={{ base: 6, md: 10 }}
+          shadow="sm"
+          rounded="3xl"
+          border="1px solid"
           borderColor={borderColor}
         >
           <Stack spacing={8} as="form" onSubmit={handleUpdate}>
@@ -294,44 +297,44 @@ export default function Profile() {
                 <Icon as={FiUser} />
                 <Text fontWeight="bold" fontSize="sm" textTransform="uppercase" letterSpacing="widest">Personal Details</Text>
               </HStack>
-              
+
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                 <FormControl isRequired gridColumn={{ md: "span 2" }}>
                   <FormLabel fontWeight="700" color="gray.600" fontSize="xs">FULL NAME</FormLabel>
-                  <Input 
-                    value={formData.name} 
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    borderRadius="xl" 
-                    bg={inputBg} 
-                    h="50px" 
-                    focusBorderColor="blue.500" 
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    borderRadius="xl"
+                    bg={inputBg}
+                    h="50px"
+                    focusBorderColor="blue.500"
                     border="0"
                     readOnly={!isEditing}
                   />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel fontWeight="700" color="gray.600" fontSize="xs">EMAIL ADDRESS</FormLabel>
-                  <Input 
-                    value={formData.email} 
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    type="email" 
-                    borderRadius="xl" 
-                    bg={inputBg} 
-                    h="50px" 
-                    focusBorderColor="blue.500" 
+                  <Input
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    type="email"
+                    borderRadius="xl"
+                    bg={inputBg}
+                    h="50px"
+                    focusBorderColor="blue.500"
                     border="0"
                     readOnly={!isEditing}
                   />
                 </FormControl>
                 <FormControl isRequired>
                   <FormLabel fontWeight="700" color="gray.600" fontSize="xs">PHONE NUMBER</FormLabel>
-                  <Input 
-                    value={formData.phone} 
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    borderRadius="xl" 
-                    bg={inputBg} 
-                    h="50px" 
-                    focusBorderColor="blue.500" 
+                  <Input
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    borderRadius="xl"
+                    bg={inputBg}
+                    h="50px"
+                    focusBorderColor="blue.500"
                     border="0"
                     readOnly={!isEditing}
                   />
@@ -349,53 +352,53 @@ export default function Profile() {
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                 <FormControl>
                   <FormLabel fontWeight="700" color="gray.600" fontSize="xs">DESIGNATION</FormLabel>
-                  <Input 
-                    value={formData.designation} 
-                    onChange={(e) => setFormData({...formData, designation: e.target.value})}
-                    borderRadius="xl" 
-                    bg={inputBg} 
-                    h="50px" 
-                    focusBorderColor="blue.500" 
+                  <Input
+                    value={formData.designation}
+                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                    borderRadius="xl"
+                    bg={inputBg}
+                    h="50px"
+                    focusBorderColor="blue.500"
                     border="0"
                     readOnly={!isEditing}
                   />
                 </FormControl>
                 <FormControl>
                   <FormLabel fontWeight="700" color="gray.600" fontSize="xs">ROLE</FormLabel>
-                  <Input 
-                    value={user?.role || ''} 
-                    borderRadius="xl" 
-                    bg={inputBg} 
-                    h="50px" 
-                    focusBorderColor="blue.500" 
+                  <Input
+                    value={user?.role || ''}
+                    borderRadius="xl"
+                    bg={inputBg}
+                    h="50px"
+                    focusBorderColor="blue.500"
                     border="0"
                     readOnly
                   />
                 </FormControl>
                 <FormControl>
                   <FormLabel fontWeight="700" color="gray.600" fontSize="xs">LOCATION</FormLabel>
-                  <Input 
-                    value={formData.location} 
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
+                  <Input
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     placeholder="e.g., New Delhi, India"
-                    borderRadius="xl" 
-                    bg={inputBg} 
-                    h="50px" 
-                    focusBorderColor="blue.500" 
+                    borderRadius="xl"
+                    bg={inputBg}
+                    h="50px"
+                    focusBorderColor="blue.500"
                     border="0"
                     readOnly={!isEditing}
                   />
                 </FormControl>
                 <FormControl>
                   <FormLabel fontWeight="700" color="gray.600" fontSize="xs">WORKING AREA</FormLabel>
-                  <Input 
-                    value={formData.workingArea} 
-                    onChange={(e) => setFormData({...formData, workingArea: e.target.value})}
+                  <Input
+                    value={formData.workingArea}
+                    onChange={(e) => setFormData({ ...formData, workingArea: e.target.value })}
                     placeholder="e.g., North Delhi"
-                    borderRadius="xl" 
-                    bg={inputBg} 
-                    h="50px" 
-                    focusBorderColor="blue.500" 
+                    borderRadius="xl"
+                    bg={inputBg}
+                    h="50px"
+                    focusBorderColor="blue.500"
                     border="0"
                     readOnly={!isEditing}
                   />
@@ -405,11 +408,11 @@ export default function Profile() {
 
             {isEditing && (
               <Flex justify="space-between" pt={4}>
-                <Button 
+                <Button
                   variant="outline"
                   colorScheme="gray"
-                  size="lg" 
-                  px={10} 
+                  size="lg"
+                  px={10}
                   borderRadius="2xl"
                   onClick={() => {
                     setIsEditing(false);
@@ -425,12 +428,12 @@ export default function Profile() {
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  colorScheme="blue" 
-                  size="lg" 
-                  px={10} 
-                  borderRadius="2xl" 
+                <Button
+                  type="submit"
+                  colorScheme="blue"
+                  size="lg"
+                  px={10}
+                  borderRadius="2xl"
                   leftIcon={<FiCheck />}
                   isLoading={loading}
                   shadow="blue-md"
@@ -469,11 +472,11 @@ export default function Profile() {
                   />
                 </Box>
               )}
-              
+
               <Text textAlign="center" color="gray.600" fontSize="sm">
                 This will be your new profile picture. Make sure it's clear and professional.
               </Text>
-              
+
               <HStack spacing={4} w="full">
                 <Button
                   variant="outline"

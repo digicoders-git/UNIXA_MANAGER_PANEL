@@ -43,7 +43,7 @@ import {
 } from 'react-icons/fi';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import http from '../apis/http';
+import http, { getMediaUrl } from '../apis/http';
 
 const LinkItems = [
   { name: 'Dashboard', icon: FiHome, path: '/dashboard' },
@@ -66,7 +66,7 @@ export default function DashboardLayout({ children }) {
   return (
     <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.950')}>
       <SidebarContent
-        onClose={() => onClose}
+        onClose={onClose}
         display={{ base: 'none', md: 'block' }}
       />
       <Drawer
@@ -76,14 +76,14 @@ export default function DashboardLayout({ children }) {
         onClose={onClose}
         returnFocusOnClose={false}
         onOverlayClick={onClose}
-        size="full">
+        size="xs">
         <DrawerContent>
           <SidebarContent onClose={onClose} />
         </DrawerContent>
       </Drawer>
       {/* mobilenav */}
       <MobileNav onOpen={onOpen} />
-      <Box ml={{ base: 0, md: 64 }} p="6" transition="0.3s ease">
+      <Box ml={{ base: 0, md: 64 }} p={{ base: 3, sm: 4, md: 6 }} transition="0.3s ease">
         {children}
       </Box>
     </Box>
@@ -104,7 +104,10 @@ const SidebarContent = ({ onClose, ...rest }) => {
       borderRightColor={borderColor}
       w={{ base: 'full', md: 64 }}
       pos="fixed"
-      h="full"
+      h="100vh"
+      zIndex={{ base: 20, md: 'auto' }}
+      display="flex"
+      flexDirection="column"
       {...rest}>
       <Flex h="24" alignItems="center" mx="8" justifyContent="space-between">
         <HStack spacing={3}>
@@ -128,8 +131,8 @@ const SidebarContent = ({ onClose, ...rest }) => {
           icon={<FiMenu />}
         />
       </Flex>
-      <Flex direction="column" h="calc(100% - 96px)" justify="space-between" pb={8}>
-        <VStack spacing={1} align="stretch" px={4} overflowY="auto">
+      <Flex direction="column" flex="1" overflow="hidden" justify="space-between" pb={8}>
+        <VStack spacing={1} align="stretch" px={4} overflowY="auto" flex="1" maxH="calc(100vh - 160px)">
           {LinkItems.map((link) => (
             <NavItem
               key={link.name}
@@ -293,7 +296,7 @@ const MobileNav = ({ onOpen, ...rest }) => {
                 <Avatar
                   size={'sm'}
                   name={user?.name || "Manager"}
-                  src={user?.profilePicture || 'https://images.unsplash.com/photo-1619946769363-107a671448b7?auto=format&fit=crop&w=116&q=80'}
+                  src={getMediaUrl(user?.profilePicture) || 'https://images.unsplash.com/photo-1619946769363-107a671448b7?auto=format&fit=crop&w=116&q=80'}
                   border="2px solid"
                   borderColor="blue.500"
                 />

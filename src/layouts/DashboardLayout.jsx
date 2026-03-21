@@ -109,16 +109,13 @@ const SidebarContent = ({ onClose, ...rest }) => {
       display="flex"
       flexDirection="column"
       {...rest}>
-      <Flex h="24" alignItems="center" mx="8" justifyContent="space-between">
-        <HStack spacing={3}>
-          <Box>
-            <img src="/sks-logo.png" alt="UNIXA Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
-          </Box>
-          <VStack spacing={0} align="start">
-            <Text fontSize="lg" fontWeight="800" letterSpacing="tight" color={useColorModeValue('gray.800', 'white')}>
-              UNIXA
-            </Text>
-            <Text fontSize="xs" fontWeight="600" color="blue.500" textTransform="uppercase" letterSpacing="wide">
+      <Flex h="36" alignItems="center" mx="8" justifyContent="center">
+        <HStack spacing={3} justify="center">
+          <VStack spacing={1} align="center">
+            <Box>
+              <img src="/favicon.png" alt="UNIXA Logo" style={{ width: '112px', height: '112px', objectFit: 'contain' }} />
+            </Box>
+            <Text fontSize="xs" fontWeight="800" color="blue.500" textTransform="uppercase" letterSpacing="wide">
               Manager Panel
             </Text>
           </VStack>
@@ -253,7 +250,7 @@ const MobileNav = ({ onOpen, ...rest }) => {
 
       <HStack spacing={3} display={{ base: 'flex', md: 'none' }}>
         <Box>
-          <img src="/sks-logo.png" alt="UNIXA Logo" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+          <img src="/favicon.png" alt="UNIXA Logo" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
         </Box>
         <Text fontSize="lg" fontWeight="extrabold">UNIXA</Text>
       </HStack>

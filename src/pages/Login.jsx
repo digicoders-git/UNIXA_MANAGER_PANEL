@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import logo from '../../public/favicon.png';
+
 import {
   Box,
   Button,
@@ -99,10 +101,13 @@ export default function Login() {
         >
           <Stack spacing={8}>
             <Stack align="center" spacing={3}>
-              <Heading fontSize="3xl" fontWeight="extrabold" color="blue.600">
-                Welcome Back
-              </Heading>
-            </Stack>
+              <img src={logo} alt="logo" width="180px" height="180px">
+             
+              </img>
+              <p className='text-xl font-bold'>
+                Manager Panel
+              </p>
+            </Stack>  
 
             <Stack spacing={5} as="form" onSubmit={handleLogin}>
               <FormControl id="email" isRequired>

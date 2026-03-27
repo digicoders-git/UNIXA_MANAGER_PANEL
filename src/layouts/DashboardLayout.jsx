@@ -49,6 +49,7 @@ const LinkItems = [
   { name: 'Dashboard', icon: FiHome, path: '/dashboard' },
   { name: 'Assign Ticket', icon: FiClipboard, path: '/assign-ticket' },
   { name: 'Service Requests', icon: FiTool, path: '/service-requests' },
+  { name: 'Complaints', icon: FiActivity, path: '/complaints' },
   { name: 'AMC Management', icon: FiShield, path: '/amc-management' },
   { name: 'Manage Lead', icon: FiTrendingUp, path: '/manage-lead' },
   { name: 'Manage Orders', icon: FiShoppingCart, path: '/manage-orders' },

@@ -39,6 +39,15 @@ import {
   Avatar,
   Image,
   SimpleGrid,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatGroup,
 } from '@chakra-ui/react';
 import {
   FiPlus,
@@ -53,7 +62,9 @@ import {
   FiChevronRight,
   FiSend,
   FiUser,
-  FiInbox
+  FiInbox,
+  FiCheckCircle,
+  FiXCircle,
 } from 'react-icons/fi';
 
 import http from '../apis/http';
@@ -70,6 +81,10 @@ export default function ManageLead() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [selectedLeadForSchedule, setSelectedLeadForSchedule] = useState(null);
+  const [scheduleData, setScheduleData] = useState({ scheduledDate: '', scheduleNote: '' });
+  const [rawLeads, setRawLeads] = useState([]); // store raw leads with serviceSchedule
   const itemsPerPage = 5;
   const toast = useToast();
 
@@ -177,6 +192,7 @@ export default function ManageLead() {
     try {
       const response = await http.get('/leads');
       const leadsData = response.data.leads || response.data || [];
+      setRawLeads(leadsData);
       const formattedLeads = leadsData.map(lead => ({
         id: lead._id,
         name: lead.name,
@@ -186,12 +202,49 @@ export default function ManageLead() {
         productInterest: lead.productInterest,
         source: lead.source || 'Field Visit',
         status: lead.leadStatus || 'Warm',
+        verified: lead.verified || false,
+        serviceSchedule: lead.serviceSchedule || null,
         date: lead.createdAt ? new Date(lead.createdAt).toISOString().split('T')[0] : 'N/A'
       }));
       setLeads(formattedLeads);
     } catch (error) {
       console.error("Error fetching leads:", error);
       toast({ title: 'Error fetching leads', status: 'error', isClosable: true });
+    }
+  };
+
+  const handleVerify = async (lead) => {
+    try {
+      await http.patch(`/leads/${lead.id}/verify`);
+      setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, verified: !l.verified } : l));
+      toast({ title: `Lead ${lead.verified ? 'unverified' : 'verified'}`, status: 'success', position: 'top-right' });
+    } catch (error) {
+      toast({ title: 'Failed to update verification', status: 'error', position: 'top-right' });
+    }
+  };
+
+  const handleScheduleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await http.patch(`/leads/${selectedLeadForSchedule.id}/schedule`, scheduleData);
+      const updatedLead = response.data.lead;
+      setLeads(prev => prev.map(l => l.id === selectedLeadForSchedule.id ? { ...l, serviceSchedule: updatedLead.serviceSchedule } : l));
+      toast({ title: 'Service scheduled successfully', status: 'success', position: 'top-right' });
+      setIsScheduleModalOpen(false);
+      setScheduleData({ scheduledDate: '', scheduleNote: '' });
+    } catch (error) {
+      toast({ title: 'Failed to schedule service', status: 'error', position: 'top-right' });
+    }
+  };
+
+  const handleScheduleStatusUpdate = async (leadId, scheduleStatus) => {
+    try {
+      const response = await http.patch(`/leads/${leadId}/schedule-status`, { scheduleStatus });
+      const updatedLead = response.data.lead;
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, serviceSchedule: updatedLead.serviceSchedule } : l));
+      toast({ title: `Marked as ${scheduleStatus}`, status: 'success', position: 'top-right' });
+    } catch (error) {
+      toast({ title: 'Failed to update status', status: 'error', position: 'top-right' });
     }
   };
 
@@ -363,17 +416,31 @@ export default function ManageLead() {
     onFormClose();
   };
 
+  const [productFilter, setProductFilter] = useState('All');
+
   const filteredLeads = useMemo(() => {
-    return leads.filter(lead =>
-      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [leads, searchTerm]);
+    return leads.filter(lead => {
+      const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesProduct = productFilter === 'All' || (lead.productInterest || '') === productFilter;
+      return matchesSearch && matchesProduct;
+    });
+  }, [leads, searchTerm, productFilter]);
+
+  const productCategories = ['All', 'Product', 'Part', 'Rent', 'AMC', 'Water Testing', 'Installation', 'Service Paid Type', 'Others', 'Demo'];
+  const statsFiltered = productFilter === 'All' ? leads : leads.filter(l => (l.productInterest || '') === productFilter);
+  const statsTotal = statsFiltered.length;
+  const statsCompleted = statsFiltered.filter(l => getLeadTicketStatus(l.id) === 'Completed').length;
+  const statsPending = statsFiltered.filter(l => getLeadTicketStatus(l.id) !== 'Completed').length;
 
   const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredLeads.slice(indexOfFirstItem, indexOfLastItem);
+
+  const scheduledLeads = leads.filter(l => l.serviceSchedule?.scheduledDate);
+  const upcomingCount = scheduledLeads.filter(l => l.serviceSchedule?.scheduleStatus === 'Upcoming').length;
+  const completedScheduleCount = scheduledLeads.filter(l => l.serviceSchedule?.scheduleStatus === 'Completed').length;
 
   return (
     <Box maxW="1400px" mx="auto">
@@ -408,6 +475,52 @@ export default function ManageLead() {
         </HStack>
       </Flex>
 
+      <Tabs colorScheme="blue" mb={6}>
+        <TabList>
+          <Tab fontWeight="bold">Leads</Tab>
+          <Tab fontWeight="bold">
+            Schedule
+            {upcomingCount > 0 && <Badge ml={2} colorScheme="orange" borderRadius="full">{upcomingCount}</Badge>}
+          </Tab>
+        </TabList>
+        <TabPanels>
+          {/* Leads Tab */}
+          <TabPanel px={0}>
+
+      {/* Product Filter + Stats */}
+      <Box mb={6}>
+        <HStack mb={4} spacing={2} flexWrap="wrap">
+          {productCategories.map(cat => (
+            <Button
+              key={cat}
+              size="sm"
+              borderRadius="xl"
+              fontSize="xs"
+              fontWeight="bold"
+              variant={productFilter === cat ? 'solid' : 'outline'}
+              colorScheme={productFilter === cat ? 'blue' : 'gray'}
+              onClick={() => { setProductFilter(cat); setCurrentPage(1); }}
+            >
+              {cat}
+            </Button>
+          ))}
+        </HStack>
+        <SimpleGrid columns={3} spacing={4}>
+          <Box bg={cardBg} border="1px solid" borderColor={borderColor} borderRadius="2xl" p={4} textAlign="center">
+            <Text fontSize="2xl" fontWeight="black">{statsTotal}</Text>
+            <Text fontSize="xs" fontWeight="bold" color="gray.400" textTransform="uppercase">Total Leads</Text>
+          </Box>
+          <Box bg={cardBg} border="1px solid" borderColor="green.100" borderRadius="2xl" p={4} textAlign="center">
+            <Text fontSize="2xl" fontWeight="black" color="green.500">{statsCompleted}</Text>
+            <Text fontSize="xs" fontWeight="bold" color="green.400" textTransform="uppercase">Completed</Text>
+          </Box>
+          <Box bg={cardBg} border="1px solid" borderColor="orange.100" borderRadius="2xl" p={4} textAlign="center">
+            <Text fontSize="2xl" fontWeight="black" color="orange.500">{statsPending}</Text>
+            <Text fontSize="xs" fontWeight="bold" color="orange.400" textTransform="uppercase">Pending</Text>
+          </Box>
+        </SimpleGrid>
+      </Box>
+
       {/* Leads Table */}
       <Box bg={cardBg} shadow="sm" rounded="2xl" border="1px solid" borderColor={borderColor} overflow="hidden">
         <Table variant="simple">
@@ -416,6 +529,7 @@ export default function ManageLead() {
               <Th py={5}>Contact Information</Th>
               <Th py={5}>Source</Th>
               <Th py={5}>Status</Th>
+              <Th py={5}>Verified</Th>
               <Th py={5}>Ticket Status</Th>
               <Th py={5}>Created Date</Th>
               <Th py={5} textAlign="right">Actions</Th>
@@ -448,6 +562,11 @@ export default function ManageLead() {
                   </Badge>
                 </Td>
                 <Td py={5}>
+                  <Badge colorScheme={lead.verified ? 'green' : 'gray'} variant="subtle" px={3} py={1} rounded="full">
+                    {lead.verified ? 'Verified' : 'Pending'}
+                  </Badge>
+                </Td>
+                <Td py={5}>
                   {(() => {
                     const ticketStatus = getLeadTicketStatus(lead.id);
                     return ticketStatus ? (
@@ -471,6 +590,24 @@ export default function ManageLead() {
                   <HStack justify="flex-end" spacing={1}>
                     <Tooltip label="Show Details">
                       <IconButton icon={<FiEye />} size="sm" variant="ghost" colorScheme="green" onClick={() => showLeadDetails(lead)} />
+                    </Tooltip>
+                    <Tooltip label={lead.verified ? 'Unverify' : 'Verify'}>
+                      <IconButton
+                        icon={lead.verified ? <FiCheckCircle /> : <FiCheckCircle />}
+                        size="sm"
+                        variant={lead.verified ? 'solid' : 'ghost'}
+                        colorScheme="green"
+                        onClick={() => handleVerify(lead)}
+                      />
+                    </Tooltip>
+                    <Tooltip label="Schedule Service">
+                      <IconButton
+                        icon={<FiCalendar />}
+                        size="sm"
+                        variant="ghost"
+                        colorScheme="blue"
+                        onClick={() => { setSelectedLeadForSchedule(lead); setScheduleData({ scheduledDate: lead.serviceSchedule?.scheduledDate ? new Date(lead.serviceSchedule.scheduledDate).toISOString().split('T')[0] : '', scheduleNote: lead.serviceSchedule?.scheduleNote || '' }); setIsScheduleModalOpen(true); }}
+                      />
                     </Tooltip>
                     <Tooltip label="Edit Lead">
                       <IconButton icon={<FiEdit2 />} size="sm" variant="ghost" colorScheme="blue" onClick={() => handleEdit(lead)} />
@@ -536,6 +673,81 @@ export default function ManageLead() {
           </Flex>
         )}
       </Box>
+          </TabPanel>
+
+          {/* Schedule Tab */}
+          <TabPanel px={0}>
+            <StatGroup mb={6}>
+              <Stat bg={cardBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor} mr={4}>
+                <StatLabel color="gray.500">Total Scheduled</StatLabel>
+                <StatNumber>{scheduledLeads.length}</StatNumber>
+              </Stat>
+              <Stat bg={cardBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor} mr={4}>
+                <StatLabel color="orange.500">Upcoming</StatLabel>
+                <StatNumber color="orange.500">{upcomingCount}</StatNumber>
+              </Stat>
+              <Stat bg={cardBg} p={4} borderRadius="xl" border="1px solid" borderColor={borderColor}>
+                <StatLabel color="green.500">Completed</StatLabel>
+                <StatNumber color="green.500">{completedScheduleCount}</StatNumber>
+              </Stat>
+            </StatGroup>
+
+            <Box bg={cardBg} shadow="sm" rounded="2xl" border="1px solid" borderColor={borderColor} overflow="hidden">
+              <Table variant="simple">
+                <Thead bg={tableHeaderBg}>
+                  <Tr>
+                    <Th py={5}>Customer</Th>
+                    <Th py={5}>Phone</Th>
+                    <Th py={5}>Scheduled Date</Th>
+                    <Th py={5}>Note</Th>
+                    <Th py={5}>Status</Th>
+                    <Th py={5} textAlign="right">Actions</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {scheduledLeads.length === 0 ? (
+                    <Tr><Td colSpan={6} textAlign="center" py={10} color="gray.400">No scheduled services</Td></Tr>
+                  ) : (
+                    [...scheduledLeads].sort((a, b) => new Date(a.serviceSchedule.scheduledDate) - new Date(b.serviceSchedule.scheduledDate)).map(lead => (
+                      <Tr key={lead.id} _hover={{ bg: tableHeaderBg }}>
+                        <Td fontWeight="bold">{lead.name}</Td>
+                        <Td>{lead.phone}</Td>
+                        <Td>
+                          <HStack spacing={2}>
+                            <Icon as={FiCalendar} color="blue.400" />
+                            <Text>{new Date(lead.serviceSchedule.scheduledDate).toLocaleDateString('en-IN')}</Text>
+                          </HStack>
+                        </Td>
+                        <Td fontSize="sm" color="gray.500">{lead.serviceSchedule.scheduleNote || '-'}</Td>
+                        <Td>
+                          <Badge
+                            colorScheme={lead.serviceSchedule.scheduleStatus === 'Completed' ? 'green' : lead.serviceSchedule.scheduleStatus === 'Cancelled' ? 'red' : 'orange'}
+                            variant="subtle" px={3} py={1} rounded="full"
+                          >
+                            {lead.serviceSchedule.scheduleStatus}
+                          </Badge>
+                        </Td>
+                        <Td textAlign="right">
+                          {lead.serviceSchedule.scheduleStatus === 'Upcoming' && (
+                            <HStack justify="flex-end" spacing={1}>
+                              <Tooltip label="Mark Completed">
+                                <IconButton icon={<FiCheckCircle />} size="sm" variant="ghost" colorScheme="green" onClick={() => handleScheduleStatusUpdate(lead.id, 'Completed')} />
+                              </Tooltip>
+                              <Tooltip label="Cancel">
+                                <IconButton icon={<FiXCircle />} size="sm" variant="ghost" colorScheme="red" onClick={() => handleScheduleStatusUpdate(lead.id, 'Cancelled')} />
+                              </Tooltip>
+                            </HStack>
+                          )}
+                        </Td>
+                      </Tr>
+                    ))
+                  )}
+                </Tbody>
+              </Table>
+            </Box>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
 
       {/* Form Modal (Add/Edit) */}
       <Modal isOpen={isFormOpen} onClose={handleCloseForm} size="md" isCentered>
@@ -817,6 +1029,56 @@ export default function ManageLead() {
         </ModalContent>
       </Modal>
 
+      {/* Schedule Service Modal */}
+      <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)} size="md" isCentered>
+        <ModalOverlay backdropFilter="blur(5px)" />
+        <ModalContent borderRadius="2xl" border="1px solid" borderColor={borderColor}>
+          <ModalHeader py={5}>
+            <HStack spacing={3}>
+              <Icon as={FiCalendar} color="blue.500" />
+              <Text>Schedule Service</Text>
+            </HStack>
+          </ModalHeader>
+          <ModalCloseButton mt={2} />
+          <Divider />
+          <form onSubmit={handleScheduleSubmit}>
+            <ModalBody py={6}>
+              <Stack spacing={4}>
+                {selectedLeadForSchedule && (
+                  <Box p={3} bg="blue.50" borderRadius="xl">
+                    <Text fontWeight="bold">{selectedLeadForSchedule.name}</Text>
+                    <Text fontSize="sm" color="gray.600">{selectedLeadForSchedule.phone}</Text>
+                  </Box>
+                )}
+                <FormControl isRequired>
+                  <FormLabel fontWeight="600">Service Date</FormLabel>
+                  <Input
+                    type="date"
+                    borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
+                    value={scheduleData.scheduledDate}
+                    onChange={(e) => setScheduleData({ ...scheduleData, scheduledDate: e.target.value })}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel fontWeight="600">Note (Optional)</FormLabel>
+                  <Textarea
+                    placeholder="Any special instructions..."
+                    rows={3}
+                    borderRadius="xl" focusBorderColor="blue.500" bg={useColorModeValue('gray.50', 'gray.900')}
+                    value={scheduleData.scheduleNote}
+                    onChange={(e) => setScheduleData({ ...scheduleData, scheduleNote: e.target.value })}
+                  />
+                </FormControl>
+              </Stack>
+            </ModalBody>
+            <ModalFooter py={5} bg={useColorModeValue('gray.50', 'gray.850')} borderBottomRadius="2xl">
+              <Button variant="ghost" mr={3} onClick={() => setIsScheduleModalOpen(false)} borderRadius="xl">Cancel</Button>
+              <Button type="submit" colorScheme="blue" borderRadius="xl" px={8} leftIcon={<FiCalendar />}>Schedule</Button>
+            </ModalFooter>
+          </form>
+        </ModalContent>
+      </Modal>
+
       {/* Show Lead Details Modal */}
       {isShowModalOpen && selectedLeadDetails && (
         <Modal isOpen={isShowModalOpen} onClose={() => setIsShowModalOpen(false)} size="6xl" isCentered>
@@ -867,6 +1129,21 @@ export default function ManageLead() {
                       <Text fontWeight="medium" opacity={0.7}>Created:</Text>
                       <Text fontWeight="bold">{selectedLeadDetails.lead.date}</Text>
                     </HStack>
+                    <HStack justify="space-between">
+                      <Text fontWeight="medium" opacity={0.7}>Verified:</Text>
+                      <Badge colorScheme={selectedLeadDetails.lead.verified ? 'green' : 'gray'} variant="subtle" px={3} py={1} rounded="full">
+                        {selectedLeadDetails.lead.verified ? 'Verified' : 'Not Verified'}
+                      </Badge>
+                    </HStack>
+                    {selectedLeadDetails.lead.serviceSchedule?.scheduledDate && (
+                      <HStack justify="space-between">
+                        <Text fontWeight="medium" opacity={0.7}>Scheduled Date:</Text>
+                        <Text fontWeight="bold">
+                          {new Date(selectedLeadDetails.lead.serviceSchedule.scheduledDate).toLocaleDateString('en-IN')}
+                          {' '}({selectedLeadDetails.lead.serviceSchedule.scheduleStatus})
+                        </Text>
+                      </HStack>
+                    )}
                   </Stack>
                 </VStack>
 

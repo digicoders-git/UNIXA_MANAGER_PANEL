@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Box,
   Heading,
@@ -89,11 +90,15 @@ export default function AssignTicket() {
     date: '',
     desc: '',
     serviceRequestId: '',
-    orderId: ''
+    orderId: '',
+    complaintId: ''
   });
 
   const [serviceRequests, setServiceRequests] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [availableComplaints, setAvailableComplaints] = useState([]);
+
+  const location = useLocation();
 
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.100', 'gray.700');
@@ -105,6 +110,13 @@ export default function AssignTicket() {
     fetchEmployees();
     fetchServiceRequests();
     fetchOrders();
+    fetchAvailableComplaints();
+
+    if (location.state?.fromComplaint && location.state?.complaint) {
+      const c = location.state.complaint;
+      setFormData({ ticketType: 'complaint', title: `${c.type} - ${c.customerName}`, employee: '', priority: c.priority || 'Medium', date: '', desc: c.description || '', serviceRequestId: '', orderId: '', complaintId: c._id });
+      onFormOpen();
+    }
   }, []);
 
   const fetchEmployees = async () => {
@@ -127,6 +139,13 @@ export default function AssignTicket() {
     } catch (error) {
       console.error("Error fetching service requests:", error);
     }
+  };
+
+  const fetchAvailableComplaints = async () => {
+    try {
+      const { data } = await http.get('/admin/complaints/available');
+      setAvailableComplaints(Array.isArray(data) ? data : []);
+    } catch (err) { console.error(err); }
   };
 
   const fetchOrders = async () => {
@@ -192,7 +211,16 @@ export default function AssignTicket() {
         status: 'Pending'
       };
 
-      if (formData.ticketType === 'service_request' && formData.serviceRequestId) {
+      if (formData.ticketType === 'complaint' && formData.complaintId) {
+        ticketData.complaintId = formData.complaintId;
+        const sel = availableComplaints.find(c => String(c._id) === String(formData.complaintId));
+        if (sel) {
+          ticketData.userId = sel.userId;
+          ticketData.customerName = sel.customerName;
+          ticketData.customerPhone = sel.customerPhone;
+          ticketData.customerEmail = sel.customerEmail;
+        }
+      } else if (formData.ticketType === 'service_request' && formData.serviceRequestId) {
         const selectedRequest = serviceRequests.find(req => req._id === formData.serviceRequestId);
         if (selectedRequest) {
           ticketData.serviceRequestId = selectedRequest._id;
@@ -258,7 +286,7 @@ export default function AssignTicket() {
 
   const handleCloseForm = () => {
     setEditingTicket(null);
-    setFormData({ ticketType: 'service_request', title: '', employee: '', priority: 'Medium', date: '', desc: '', serviceRequestId: '', orderId: '' });
+    setFormData({ ticketType: 'service_request', title: '', employee: '', priority: 'Medium', date: '', desc: '', serviceRequestId: '', orderId: '', complaintId: '' });
     onFormClose();
   };
 
@@ -349,14 +377,14 @@ export default function AssignTicket() {
                 </Td>
                 <Td py={5}>
                   <Badge 
-                    colorScheme={ticket.ticketType === 'service_request' ? 'purple' : 'cyan'} 
+                    colorScheme={ticket.ticketType === 'service_request' ? 'purple' : ticket.ticketType === 'complaint' ? 'orange' : 'cyan'} 
                     variant="subtle" 
                     px={2} 
                     py={0.5} 
                     rounded="full"
                     fontSize="10px"
                   >
-                    {ticket.ticketType === 'service_request' ? 'AMC Service' : 'Installation'}
+                    {ticket.ticketType === 'service_request' ? 'AMC Service' : ticket.ticketType === 'complaint' ? 'Complaint' : 'Installation'}
                   </Badge>
                 </Td>
                 <Td py={5}>
@@ -462,10 +490,11 @@ export default function AssignTicket() {
                   <Select
                     borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
                     value={formData.ticketType}
-                    onChange={(e) => setFormData({ ...formData, ticketType: e.target.value, serviceRequestId: '', orderId: '' })}
+                    onChange={(e) => setFormData({ ...formData, ticketType: e.target.value, serviceRequestId: '', orderId: '', complaintId: '' })}
                   >
                     <option value="service_request">Service Request (AMC)</option>
                     <option value="order">Order Installation</option>
+                    <option value="complaint">Complaint</option>
                   </Select>
                 </FormControl>
 
@@ -489,6 +518,22 @@ export default function AssignTicket() {
                         <option key={req._id} value={req._id}>
                           {req.ticketId} - {req.customerName} - {req.type}
                         </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
+                {formData.ticketType === 'complaint' && (
+                  <FormControl isRequired>
+                    <FormLabel fontWeight="600">Select Complaint ({availableComplaints.length} open)</FormLabel>
+                    <Select placeholder="Choose complaint" borderRadius="xl" bg={useColorModeValue('gray.50', 'gray.900')}
+                      value={formData.complaintId}
+                      onChange={(e) => {
+                        const sel = availableComplaints.find(c => c._id === e.target.value);
+                        setFormData({ ...formData, complaintId: e.target.value, title: sel ? `${sel.type} - ${sel.customerName}` : '', desc: sel?.description || '', priority: sel?.priority || 'Medium' });
+                      }}>
+                      {availableComplaints.map(c => (
+                        <option key={c._id} value={c._id}>{c.complaintId} - {c.customerName} - {c.type}</option>
                       ))}
                     </Select>
                   </FormControl>

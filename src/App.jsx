@@ -18,6 +18,7 @@ import Profile from './pages/Profile';
 import ChangePassword from './pages/ChangePassword';
 import Notifications from './pages/Notifications';
 import ServiceRequests from './pages/ServiceRequests';
+import Complaints from './pages/Complaints';
 import AMCManagement from './pages/AMCManagement';
 import SMSMessages from './pages/SMSMessages';
 import UserHistory from './pages/UserHistory';
@@ -170,6 +171,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <Notifications />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/complaints"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Complaints />
                 </DashboardLayout>
               </ProtectedRoute>
             }

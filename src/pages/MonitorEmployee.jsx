@@ -80,7 +80,7 @@ const SummaryStat = ({ label, value, color }) => (
   </Box>
 );
 
-const EmployeeCard = ({ employee, onAction }) => {
+const EmployeeCard = ({ employee, onAction, liveData }) => {
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.100', 'gray.700');
   const progressBg = useColorModeValue('gray.100', 'gray.700');
@@ -157,6 +157,35 @@ const EmployeeCard = ({ employee, onAction }) => {
           />
         </Box>
 
+        {/* Live Job Status */}
+        {liveData && (
+          <Box bg="gray.50" p={3} rounded="xl" border="1px solid" borderColor="gray.100">
+            <HStack justify="space-between" mb={2}>
+              <Text fontSize="10px" fontWeight="bold" color="gray.400" textTransform="uppercase">Live Jobs</Text>
+              <HStack spacing={1}>
+                {liveData.inProgressCount > 0 && (
+                  <Badge colorScheme="blue" fontSize="9px" variant="solid" rounded="full">{liveData.inProgressCount} In Progress</Badge>
+                )}
+                {liveData.pendingCount > 0 && (
+                  <Badge colorScheme="yellow" fontSize="9px" variant="solid" rounded="full">{liveData.pendingCount} Pending</Badge>
+                )}
+              </HStack>
+            </HStack>
+            <VStack align="stretch" spacing={1}>
+              {liveData.activeJobs.slice(0, 2).map(job => (
+                <HStack key={job._id} spacing={2}>
+                  <Box w={2} h={2} rounded="full" bg={job.status === 'In Progress' ? 'blue.400' : 'yellow.400'} flexShrink={0} />
+                  <Text fontSize="xs" color="gray.600" noOfLines={1} flex={1}>{job.title}</Text>
+                  <Text fontSize="9px" color="gray.400" flexShrink={0}>{job.customerName}</Text>
+                </HStack>
+              ))}
+              {liveData.activeJobs.length > 2 && (
+                <Text fontSize="10px" color="gray.400">+{liveData.activeJobs.length - 2} more</Text>
+              )}
+            </VStack>
+          </Box>
+        )}
+
         <Flex justify="space-between" align="center" pt={2}>
           <HStack fontSize="xs" color="gray.500" fontWeight="medium">
             <Icon as={FiClock} />
@@ -186,6 +215,7 @@ export default function MonitorEmployee() {
   const [modalType, setModalType] = useState(''); // 'profile', 'activity', 'performance'
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [liveStatus, setLiveStatus] = useState({});
   
   const { isOpen, onOpen, onClose } = useDisclosure();
   
@@ -203,7 +233,19 @@ export default function MonitorEmployee() {
 
   useEffect(() => {
     fetchEmployees();
+    fetchLiveStatus();
+    const interval = setInterval(fetchLiveStatus, 30000); // refresh every 30s
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchLiveStatus = async () => {
+    try {
+      const res = await http.get('/assigned-tickets/live-status');
+      setLiveStatus(res.data || {});
+    } catch (e) {
+      console.error('Failed to fetch live status', e);
+    }
+  };
 
   const fetchEmployees = async () => {
     try {
@@ -220,7 +262,8 @@ export default function MonitorEmployee() {
           lastSeen: emp.lastLogin ? new Date(emp.lastLogin).toLocaleTimeString('en-IN') : 'Never',
           avatar: '',
           email: emp.email,
-          phone: emp.phone || 'N/A'
+          phone: emp.phone || 'N/A',
+          empName: emp.name
         }));
       setEmployees(formattedEmployees);
     } catch (error) {
@@ -336,7 +379,7 @@ export default function MonitorEmployee() {
       ) : (
         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={8}>
           {filteredEmployees.map((emp) => (
-            <EmployeeCard key={emp.id} employee={emp} onAction={handleAction} />
+            <EmployeeCard key={emp.id} employee={emp} onAction={handleAction} liveData={liveStatus[emp.empName]} />
           ))}
         </SimpleGrid>
       )}
